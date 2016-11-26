@@ -1,0 +1,7 @@
+-In class notes
+
+--Authentication
+---Kerberos
+
+
+---OAuth

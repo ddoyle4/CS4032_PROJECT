@@ -5,12 +5,14 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeOperators #-}	
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeFamilies #-}
+
 
 module Lib
     ( startApp
     ) where
+
 
 import Control.Monad.IO.Class
 import Control.Monad.Reader
@@ -36,16 +38,16 @@ import qualified Data.Aeson.Parser
 import qualified Text.Blaze.Html
 
 
-
 type API = "position" :> Capture "x" Int :> Capture "y" Int :> Get '[JSON] Position
       :<|> "hello" :> QueryParam "name" String :> Get '[JSON] HelloMessage
       :<|> "marketing" :> ReqBody '[JSON] ClientInfo :> Post '[JSON] Email
+
+
 
 data Position = Position
   { x :: Int
   , y :: Int
   } deriving Generic
-
 
 instance ToJSON Position
 
@@ -71,7 +73,6 @@ data Email = Email
   , body :: String
   } deriving Generic
 
-
 instance ToJSON Email
 
 emailForClient :: ClientInfo -> Email
@@ -86,81 +87,35 @@ emailForClient c = Email from' to' subject' body'
                 ++ intercalate ", " (clientInterestedIn c)
                 ++ " products? Give us a visit!"
 
-userAPI :: Proxy API
-userAPI = Proxy
 
 server3 :: Server API
 server3 = position
      :<|> hello
      :<|> marketing
 
-  where position :: Int -> Int -> EitherT ServantErr IO Position
+  where position :: Int -> Int -> Handler Position
         position x y = return (Position x y)
 
-        hello :: Maybe String -> EitherT ServantErr IO HelloMessage
+        hello :: Maybe String -> Handler HelloMessage
         hello mname = return . HelloMessage $ case mname of
           Nothing -> "Hello, anonymous coward"
           Just n  -> "Hello, " ++ n
 
-        marketing :: ClientInfo -> EitherT ServantErr IO Email
+        marketing :: ClientInfo -> Handler Email
         marketing clientinfo = return (emailForClient clientinfo)
 
 
-app :: Application
-app = serve userAPI server3
---comment
-startApp :: IO ()
-startApp = run 8001 app
-
-{-
-
-
-type UserAPI1 = "users" :> Get '[JSON] [User]
-
-type UserAPI2 =   "users" :> Get '[JSON] [User]
-                  :<|> "albert" :> Get '[JSON] User
-                  :<|> "issac" :> Get '[JSON] User
-
-isaac :: User
-isaac = User "Isaac Newton" 372 "isaac@newton.co.uk" (fromGregorian 1683 3 1)
-
-albert :: User
-albert = User "Albert Einstein" 136 "ae@mc2.org" (fromGregorian 1905 12 1)
-
-users2 :: [User]
-users2 = [isaac, albert]
-
-server2 :: Server UserAPI2
-server2 = return users2
-          :<|> return albert
-          :<|> return isaac
-
-
-data User = User
-  { name :: String
-  , age :: Int
-  , email :: String
-  , registration_date :: Day
-  } deriving (Eq, Show, Generic)
-
-instance ToJSON User
-
-
-users1 :: [User]
-users1 =
-  [ User "Isaac Newton"    372 "isaac@newton.co.uk" (fromGregorian 1683  3 1)
-  , User "Albert Einstein" 136 "ae@mc2.org"         (fromGregorian 1905 12 1)
-  ]
-
-server1 :: Server UserAPI1
-server1 = return users1
-
-userAPI :: Proxy UserAPI2
+userAPI :: Proxy API
 userAPI = Proxy
 
-app :: Application
-app = serve userAPI server2
---comment
+-- 'serve' comes from servant and hands you a WAI Application,
+-- which you can think of as an "abstract" web application,
+-- not yet a webserver.
+app1 :: Application
+app1 = serve userAPI server3
+
 startApp :: IO ()
-startApp = run 8001 app
--}
+startApp = run 8081 app1
+
+
+
