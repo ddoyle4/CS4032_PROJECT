@@ -71,6 +71,6 @@ docker:
 # stack image container 
 image:
   container:
-    name: use-haskell
+    name: echo-server
     base: fpco/stack-run
 

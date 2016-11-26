@@ -33,6 +33,10 @@ library
                      , blaze-html
                      , servant-lucid
                      , lucid
+                     , monad-control
+                     , transformers
+                     , either
+                     , transformers-base
   default-language:    Haskell2010
 
 executable echoServer-exe
