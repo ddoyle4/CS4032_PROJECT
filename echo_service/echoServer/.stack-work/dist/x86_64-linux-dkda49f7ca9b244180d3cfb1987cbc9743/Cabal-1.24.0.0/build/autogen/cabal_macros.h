@@ -42,6 +42,13 @@
   (major1) == 0 && (major2) <  7 || \
   (major1) == 0 && (major2) == 7 && (minor) <= 1)
 
+/* package bson-0.3.2.3 */
+#define VERSION_bson "0.3.2.3"
+#define MIN_VERSION_bson(major1,major2,minor) (\
+  (major1) <  0 || \
+  (major1) == 0 && (major2) <  3 || \
+  (major1) == 0 && (major2) == 3 && (minor) <= 2)
+
 /* package bytestring-0.10.8.1 */
 #define VERSION_bytestring "0.10.8.1"
 #define MIN_VERSION_bytestring(major1,major2,minor) (\
@@ -83,6 +90,13 @@
   (major1) <  1 || \
   (major1) == 1 && (major2) <  0 || \
   (major1) == 1 && (major2) == 0 && (minor) <= 1)
+
+/* package mongoDB-2.1.1.1 */
+#define VERSION_mongoDB "2.1.1.1"
+#define MIN_VERSION_mongoDB(major1,major2,minor) (\
+  (major1) <  2 || \
+  (major1) == 2 && (major2) <  1 || \
+  (major1) == 2 && (major2) == 1 && (minor) <= 1)
 
 /* package mtl-2.2.1 */
 #define VERSION_mtl "2.2.1"
@@ -238,7 +252,7 @@
   (major1) == 2 && (major2) <  26 || \
   (major1) == 2 && (major2) == 26 && (minor) <= 0)
 
-#define CURRENT_COMPONENT_ID "echoServer-0.1.0.0-5snGOg8SV9S89bypdllnBa"
+#define CURRENT_COMPONENT_ID "echoServer-0.1.0.0-FyfhFM9Y0Ca4BkR9QrNQtp"
 
-#define CURRENT_PACKAGE_KEY "echoServer-0.1.0.0-5snGOg8SV9S89bypdllnBa"
+#define CURRENT_PACKAGE_KEY "echoServer-0.1.0.0-FyfhFM9Y0Ca4BkR9QrNQtp"
 

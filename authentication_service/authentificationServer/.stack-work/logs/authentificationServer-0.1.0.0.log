@@ -1,0 +1,30 @@
+Preprocessing library authentificationServer-0.1.0.0...
+[1 of 1] Compiling Lib              ( src/Lib.hs, .stack-work/dist/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/Cabal-1.24.0.0/build/Lib.o )
+
+src/Lib.hs:166:5: error:
+    • Non type-variable argument
+        in the constraint: MonadBaseControl IO m
+      (Use FlexibleContexts to permit this)
+    • When checking the inferred type
+        drainCursor' :: forall (m :: * -> *).
+                        (MonadBaseControl IO m, MonadIO m) =>
+                        Cursor -> [Document] -> ReaderT MongoContext m [Document]
+      In an equation for ‘drainCursor’:
+          drainCursor cur
+            = drainCursor' cur []
+            where
+                drainCursor' cur res
+                  = do { batch <- nextBatch cur;
+                         .... }
+
+src/Lib.hs:177:13: error:
+    Variable not in scope:
+      defEnv :: [Char] -> (a2 -> a2) -> [Char] -> Bool -> IO String
+
+src/Lib.hs:181:15: error:
+    Variable not in scope:
+      defEnv :: [Char] -> (String -> a1) -> Integer -> Bool -> IO Integer
+
+src/Lib.hs:185:19: error:
+    Variable not in scope:
+      defEnv :: [Char] -> (a0 -> a0) -> [Char] -> Bool -> IO String

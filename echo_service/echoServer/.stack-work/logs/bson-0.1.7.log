@@ -1,0 +1,29 @@
+Configuring bson-0.1.7...
+Building bson-0.1.7...
+Preprocessing library bson-0.1.7...
+
+Data/Bson.hs:5:106: warning:
+    -XOverlappingInstances is deprecated: instead use per-instance pragmas OVERLAPPING/OVERLAPPABLE/OVERLAPS
+[1 of 3] Compiling Data.UString     ( Data/UString.hs, .stack-work/dist/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/Cabal-1.24.0.0/build/Data/UString.o )
+
+Data/UString.hs:7:1: warning: [-Wtabs]
+    Tab character found here, and in three further locations.
+    Please use spaces instead.
+
+Data/UString.hs:20:19: warning: [-Wdeprecations]
+    In the use of type constructor or class ‘Typeable1’
+    (imported from Data.Typeable, but defined in Data.Typeable.Internal):
+    Deprecated: "renamed to 'Typeable'"
+[2 of 3] Compiling Data.Bson        ( Data/Bson.hs, .stack-work/dist/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/Cabal-1.24.0.0/build/Data/Bson.o )
+
+Data/Bson.hs:8:1: warning: [-Wtabs]
+    Tab character found here, and in 190 further locations.
+    Please use spaces instead.
+[3 of 3] Compiling Data.Bson.Binary ( Data/Bson/Binary.hs, .stack-work/dist/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/Cabal-1.24.0.0/build/Data/Bson/Binary.o )
+
+Data/Bson/Binary.hs:4:1: warning: [-Wtabs]
+    Tab character found here, and in 128 further locations.
+    Please use spaces instead.
+Installing library in
+/home/david/CS4032_PROJECT/echo_service/echoServer/.stack-work/install/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/lts-7.10/8.0.1/lib/x86_64-linux-ghc-8.0.1/bson-0.1.7-EfO3lqdNpyP7R8trpQ6nyr
+Registering bson-0.1.7...
