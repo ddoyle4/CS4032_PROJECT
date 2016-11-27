@@ -83,15 +83,21 @@ import qualified Data.ByteString.Base16 as B16
 import Data.Char (chr)
 import System.Random
 import System.IO.Unsafe
-
+import Crypto.Hash.MD5
 
 --NOTE the save endpoint is for debugging purposes only
 type API = "position" :> Capture "x" Int :> Capture "y" Int :> Get '[JSON] Position
       :<|> "hello" :> QueryParam "name" String :> Get '[JSON] HelloMessage
       :<|> "marketing" :> ReqBody '[JSON] ClientInfo :> Post '[JSON] Email
       :<|> "save" :> Capture "name" String :> Capture "password" String :> Get '[JSON] Bool 
+--      :<|> "authreq" :> ReqBody '[JSON] ClientReqMsg :> Post '[JSON] ClientRespMsg
 
-
+{-
+data ClientReqMsg = ClientReqMsg
+  { name :: String
+  , 
+  
+  -}
 
 data Client = Client
   { name :: String
@@ -105,22 +111,20 @@ instance ToBSON Client
 
 genClient :: String -> String -> IO Client
 genClient name pass = liftIO $ do
-  putStrLn "fuxxy 1"
-  putStrLn (name ++ ":" ++ pass)
-  let passBloat = bloatString16 pass
-  let nameBloat = bloatString16 name
-  putStrLn (nameBloat ++ ":" ++ passBloat)
-  let key = CCA.initKey (BC.pack passBloat)
-  putStrLn "fuxxy 2"
-  let nameENC = BC.unpack $ CCA.encryptECB key (BC.pack nameBloat)
-  putStrLn "fuxxy 3"
+  let key = CCA.initKey (hash (BC.pack pass))
+  let namePadding = addPadding name 
+  let nameENC = BC.unpack $ CCA.encryptECB key (BC.pack namePadding)
   let newClient = (Client name pass nameENC)
   putStrLn (show newClient)
   return newClient
 
---adds random chars to string as required to ensure |string| % 16 = 0
-bloatString16 :: String -> String
-bloatString16 str = str ++ (take (16 - ((length str) `mod` 16)) $ randomRs ('a','z') $ unsafePerformIO newStdGen)
+
+paddingChar :: Char
+paddingChar = 'x'
+
+--adds padding to a string for ECB encryption
+addPadding :: String -> String
+addPadding str = str ++ (take (16 - ((length str) `mod` 16)) (repeat paddingChar))
 
 
 data Position = Position
