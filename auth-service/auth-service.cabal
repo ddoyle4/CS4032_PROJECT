@@ -47,6 +47,9 @@ library
                      , lucid
                      , monad-control
                      , transformers-base
+                     , cipher-aes
+                     , random
+                     , base16-bytestring
   default-language:    Haskell2010
 
 executable auth-service-exe

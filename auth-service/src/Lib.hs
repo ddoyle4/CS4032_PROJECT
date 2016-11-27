@@ -29,7 +29,7 @@ import Control.Monad.Trans.Resource
 import Data.Text                    (pack, unpack)
 import Data.Aeson
 import Data.Aeson.Types
-import Data.Attoparsec.ByteString
+import Data.Attoparsec.ByteString hiding (take)
 import Data.ByteString (ByteString)
 import Data.Int
 import Data.List
@@ -76,20 +76,52 @@ import System.Log.Handler           (setFormatter)
 import System.Log.Handler.Simple
 import System.Log.Handler.Syslog
 import System.Log.Logger
+import qualified Crypto.Cipher.AES as CCA
+import qualified Data.ByteString as B hiding (take)
+import qualified Data.ByteString.Char8 as BC
+import qualified Data.ByteString.Base16 as B16
+import Data.Char (chr)
+import System.Random
+import System.IO.Unsafe
 
+
+--NOTE the save endpoint is for debugging purposes only
 type API = "position" :> Capture "x" Int :> Capture "y" Int :> Get '[JSON] Position
       :<|> "hello" :> QueryParam "name" String :> Get '[JSON] HelloMessage
       :<|> "marketing" :> ReqBody '[JSON] ClientInfo :> Post '[JSON] Email
-      :<|> "save" :> Capture "name" String :> Capture "age" Int :> Get '[JSON] Person
+      :<|> "save" :> Capture "name" String :> Capture "password" String :> Get '[JSON] Bool 
 
-data Person = Person
+
+
+data Client = Client
   { name :: String
-  , age :: Int
-  } deriving Generic
+  , pass :: String
+  , nameENC :: String     --the username encrypted
+  } deriving (Show, Generic)
 
-instance ToJSON Person
-instance FromJSON Person
-instance ToBSON Person
+instance ToJSON Client
+instance FromJSON Client
+instance ToBSON Client
+
+genClient :: String -> String -> IO Client
+genClient name pass = liftIO $ do
+  putStrLn "fuxxy 1"
+  putStrLn (name ++ ":" ++ pass)
+  let passBloat = bloatString16 pass
+  let nameBloat = bloatString16 name
+  putStrLn (nameBloat ++ ":" ++ passBloat)
+  let key = CCA.initKey (BC.pack passBloat)
+  putStrLn "fuxxy 2"
+  let nameENC = BC.unpack $ CCA.encryptECB key (BC.pack nameBloat)
+  putStrLn "fuxxy 3"
+  let newClient = (Client name pass nameENC)
+  putStrLn (show newClient)
+  return newClient
+
+--adds random chars to string as required to ensure |string| % 16 = 0
+bloatString16 :: String -> String
+bloatString16 str = str ++ (take (16 - ((length str) `mod` 16)) $ randomRs ('a','z') $ unsafePerformIO newStdGen)
+
 
 data Position = Position
   { x :: Int
@@ -151,14 +183,12 @@ server3 = position
         marketing :: ClientInfo -> Handler Email
         marketing clientinfo = return (emailForClient clientinfo)
 
-        save :: String -> Int -> Handler Person
-        save name age = liftIO $ do
-          let newEntry = Person name age
-          -- upsert creates a new record if the identified record does not exist, or if
-          -- it does exist, it updates the record with the passed document content
-          -- As you can see, this takes a single line of code
-          withMongoDbConnection $ upsert (select ["name" =: name] "saved_persons") $ toBSON newEntry
-          return (Person name age)
+        save :: String -> String -> Handler Bool
+        save name pass = liftIO $ do
+          newEntry <- genClient name pass 
+          -- TODO!!!! check if user already exists
+          withMongoDbConnection $ upsert (select ["name" =: name] "users") $ toBSON newEntry
+          return True
 
 
 
