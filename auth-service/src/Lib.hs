@@ -32,7 +32,7 @@ import Data.Aeson.Types
 import Data.Attoparsec.ByteString hiding (take)
 import Data.ByteString (ByteString)
 import Data.Int
-import Data.List
+import Data.List hiding (find)
 import Data.String.Conversions
 import Data.Time.Calendar
 import GHC.Generics
@@ -56,7 +56,7 @@ import Data.Aeson
 import Data.Aeson.TH
 import Data.Bson.Generic
 import qualified Data.ByteString.Lazy         as L
-import qualified Data.List                    as DL
+import qualified Data.List                    as DL hiding (find)
 import Data.Maybe                   (catMaybes)
 import Data.Text                    (pack, unpack)
 import Data.Time.Clock              (UTCTime, getCurrentTime)
@@ -90,14 +90,48 @@ type API = "position" :> Capture "x" Int :> Capture "y" Int :> Get '[JSON] Posit
       :<|> "hello" :> QueryParam "name" String :> Get '[JSON] HelloMessage
       :<|> "marketing" :> ReqBody '[JSON] ClientInfo :> Post '[JSON] Email
       :<|> "save" :> Capture "name" String :> Capture "password" String :> Get '[JSON] Bool 
---      :<|> "authreq" :> ReqBody '[JSON] ClientReqMsg :> Post '[JSON] ClientRespMsg
+      :<|> "authreq" :> ReqBody '[JSON] ClientReqMsg :> Post '[JSON] Bool
 
-{-
+
+
 data ClientReqMsg = ClientReqMsg
-  { name :: String
-  , 
-  
-  -}
+  { reqName :: String
+  , reqNameENC :: String 
+  } deriving Generic
+
+instance ToJSON ClientReqMsg
+instance FromJSON ClientReqMsg
+instance ToBSON ClientReqMsg
+
+data ClientRespMsg = ClientRespMsg
+  { status :: Bool
+  , package :: String
+  } deriving (Show, Generic)
+
+instance ToJSON ClientRespMsg
+instance FromJSON ClientRespMsg
+instance ToBSON ClientRespMsg
+
+data ClientResp = ClientResp
+  { keySeed :: String
+  , tokenENC :: String
+  } deriving (Show, Generic)
+
+instance ToJSON ClientResp
+instance FromJSON ClientResp
+instance ToBSON ClientResp
+
+
+--add metadata here
+data Token = Token
+  { key1Seed :: String
+  } deriving (Read, Show, Generic)
+
+
+instance ToJSON Token
+instance FromJSON Token
+instance ToBSON Token
+
 
 data Client = Client
   { name :: String
@@ -108,6 +142,18 @@ data Client = Client
 instance ToJSON Client
 instance FromJSON Client
 instance ToBSON Client
+
+encryptWPadding :: CCA.AES -> String -> IO String
+encryptWPadding key str = liftIO $ do
+  let strPadding = addPadding str
+  let strENC = BC.unpack $ CCA.encryptECB key (BC.pack strPadding)
+  return strENC
+
+decryptWPadding :: CCA.AES -> String -> IO String
+decryptWPadding key str = liftIO $ do
+  let strPadding = BC.unpack $ CCA.decryptECB key (BC.pack str) 
+  let strDEC = removePadding strPadding
+  return strDEC
 
 genClient :: String -> String -> IO Client
 genClient name pass = liftIO $ do
@@ -120,11 +166,18 @@ genClient name pass = liftIO $ do
 
 
 paddingChar :: Char
-paddingChar = 'x'
+paddingChar = '\0'
 
 --adds padding to a string for ECB encryption
 addPadding :: String -> String
 addPadding str = str ++ (take (16 - ((length str) `mod` 16)) (repeat paddingChar))
+
+removePadding :: String -> String
+removePadding str = [x | x <- str, x /= paddingChar]
+
+--generates a random seed to create a key
+genKeySeed :: String
+genKeySeed = take 16 $ randomRs ('a','z') $ unsafePerformIO newStdGen
 
 
 data Position = Position
@@ -171,11 +224,20 @@ emailForClient c = Email from' to' subject' body'
                 ++ " products? Give us a visit!"
 
 
+authClient :: String -> String -> IO Bool
+authClient name nameENC = liftIO $ do
+  withMongoDbConnection $ do
+    docs <- find (select ["name" =: name] "users") >>= drainCursor
+    if (length docs) == 1 then return True else return False
+    --return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe ResponseData) docs
+  
+
 server3 :: Server API
 server3 = position
      :<|> hello
      :<|> marketing
      :<|> save
+     :<|> authreq
   where position :: Int -> Int -> Handler Position
         position x y = return (Position x y)
 
@@ -194,8 +256,42 @@ server3 = position
           withMongoDbConnection $ upsert (select ["name" =: name] "users") $ toBSON newEntry
           return True
 
+        authreq :: ClientReqMsg -> Handler Bool
+        authreq crm = liftIO $ do
+          isAuth <- authClient (reqName crm) (reqNameENC crm)
+          putStrLn (show isAuth)
+          return isAuth
 
 
+{-
+ 
+          let tkn = Token "token message"
+          putStrLn (show tkn)
+          let key = CCA.initKey (BC.pack genKeySeed)
+          sendThis <- encryptWPadding key (show tkn)
+
+          dec <- decryptWPadding key sendThis
+
+          let decTKN = read dec :: Token 
+
+          putStrLn (show decTKN)
+
+          let readTkn = read (show tkn) :: Token
+          putStrLn (key1Seed readTkn)
+ - -}
+
+        {-authenticate :: ClientReqMsg -> Handler Bool
+        authenticate req = liftIO $ do
+        if authClient (name req) (nameENC req) then
+          
+        else
+          
+
+        let docs = getDocs 
+          withMongoDbConnection $ do
+          docs <- find (select ["name" =: key] "MESSAGE_RECORD") >>= drainCursor
+          return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe ResponseData) docs
+-}
 
 userAPI :: Proxy API
 userAPI = Proxy
