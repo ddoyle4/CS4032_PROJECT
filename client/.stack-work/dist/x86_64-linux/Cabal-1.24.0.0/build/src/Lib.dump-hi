@@ -1,0 +1,203 @@
+
+==================== FINAL INTERFACE ====================
+2016-11-27 21:39:22.158671 UTC
+
+interface client-0.1.0.0-Fc8U1mms76tFKZjmWGEgXR:Lib 8001
+  interface hash: e18c73c24f54c2620e4ff886f14220e2
+  ABI hash: 9f278617b4c18f5ac507c861859b9cf2
+  export-list hash: aa8237b132a1b7e63a09143c01231271
+  orphan hash: 693e9af84d3dfcc71e640e005bdc5e2e
+  flag hash: b159a15c55fa7c6870cb2eb79bbae5a5
+  sig of: Nothing
+  used TH splices: False
+  where
+exports:
+  Lib.ensureHomeDir
+  Lib.helloWorld
+  Lib.host
+  Lib.port
+  Lib.processArgs
+  Lib.someFunc
+module dependencies:
+package dependencies: array-0.5.1.1@array-0.5.1.1 base-4.9.0.0*
+                      deepseq-1.4.2.0@deepseq-1.4.2.0 directory-1.2.6.2@directory-1.2.6.2
+                      filepath-1.4.1.0@filepath-1.4.1.0 ghc-prim-0.5.0.0
+                      integer-gmp-1.0.0.1 time-1.6.0.1@time-1.6.0.1
+                      unix-2.7.2.0@unix-2.7.2.0
+orphans: base-4.9.0.0:GHC.Base base-4.9.0.0:GHC.Float
+         time-1.6.0.1@time-1.6.0.1:Data.Time.Calendar.Gregorian
+         time-1.6.0.1@time-1.6.0.1:Data.Time.Format.Parse
+         time-1.6.0.1@time-1.6.0.1:Data.Time.LocalTime.LocalTime
+family instance modules: base-4.9.0.0:Control.Applicative
+                         base-4.9.0.0:Data.Complex base-4.9.0.0:Data.Either
+                         base-4.9.0.0:Data.Functor.Const base-4.9.0.0:Data.Functor.Identity
+                         base-4.9.0.0:Data.List.NonEmpty base-4.9.0.0:Data.Monoid
+                         base-4.9.0.0:Data.Semigroup base-4.9.0.0:Data.Type.Equality
+                         base-4.9.0.0:Data.Version base-4.9.0.0:Data.Void
+                         base-4.9.0.0:GHC.Exts base-4.9.0.0:GHC.Generics
+                         base-4.9.0.0:GHC.IO.Exception base-4.9.0.0:GHC.TypeLits
+import  -/  base-4.9.0.0:Control.Monad.IO.Class d702028d883e700bd7066b031147030d
+import  -/  base-4.9.0.0:GHC.Base 8ed3be81c0707b322f975a84ae1bb816
+import  -/  base-4.9.0.0:Prelude b9bddb97799837fe67a8d00939a5b6c3
+import  -/  base-4.9.0.0:System.Environment ee0914a962f5508d0fd404c89ee4999b
+import  -/  base-4.9.0.0:System.IO eb1d40aa793a4047069a5023f2ebcfe3
+import  -/  directory-1.2.6.2@directory-1.2.6.2:System.Directory f7c57c4a392d1767b38addc37d00ceed
+import  -/  ghc-prim-0.5.0.0:GHC.Classes 0bdf3d057a415ec1b84a7b1994efbe47
+import  -/  ghc-prim-0.5.0.0:GHC.Types 7378e41b7749213c8c88ceb6b0665d4c
+46f87d7e1f5c9128d462d5e8c95536d6
+  $trModule :: GHC.Types.Module
+  {- HasNoCafRefs, Strictness: m,
+     Unfolding: (GHC.Types.Module Lib.$trModule2 Lib.$trModule1) -}
+a43a99db158485d8149b0239b30da7c5
+  $trModule1 :: GHC.Types.TrName
+  {- HasNoCafRefs, Strictness: m1,
+     Unfolding: (GHC.Types.TrNameS "Lib"#) -}
+467591c0cb6c874f7eef8fff773376ea
+  $trModule2 :: GHC.Types.TrName
+  {- HasNoCafRefs, Strictness: m1,
+     Unfolding: (GHC.Types.TrNameS
+                   "client-0.1.0.0-Fc8U1mms76tFKZjmWGEgXR"#) -}
+cda0a772691ddb67f60e64e1b705bb09
+  ensureHomeDir :: GHC.Types.IO ()
+  {- Arity: 1, Strictness: <S,U>,
+     Unfolding: InlineRule (0, True, True)
+                Lib.ensureHomeDir1 `cast` (Sym (GHC.Types.N:IO[0] <()>_R)) -}
+cdc441d829d120e70acc636b70b0e3ee
+  ensureHomeDir1 ::
+    GHC.Prim.State# GHC.Prim.RealWorld
+    -> (# GHC.Prim.State# GHC.Prim.RealWorld, () #)
+  {- Arity: 1, Strictness: <S,U>,
+     Unfolding: (\ (s :: GHC.Prim.State# GHC.Prim.RealWorld)[OneShot] ->
+                 case GHC.Prim.catch#
+                        @ GHC.Base.String
+                        @ GHC.Exception.SomeException
+                        System.Directory.getHomeDirectory4
+                          `cast`
+                        (GHC.Types.N:IO[0] <GHC.Base.String>_R)
+                        System.Directory.getHomeDirectory2
+                        s of ds1 { (#,#) ipv ipv1 ->
+                 case (System.IO.Error.catchIOError
+                         @ GHC.Types.Bool
+                         (\ (s1 :: GHC.Prim.State# GHC.Prim.RealWorld)[OneShot] ->
+                          case System.Posix.Files.getFileStatus1
+                                 (GHC.Base.++ @ GHC.Types.Char ipv1 Lib.ensureHomeDir2)
+                                 s1 of ds5 { (#,#) ipv2 ipv3 ->
+                          (# ipv2, System.Posix.Files.Common.isDirectory ipv3 #) })
+                           `cast`
+                         (Sym (GHC.Types.N:IO[0] <GHC.Types.Bool>_R))
+                         System.Directory.doesDirectoryExist1
+                           `cast`
+                         (<GHC.IO.Exception.IOError>_R
+                          ->_R Sym (GHC.Types.N:IO[0] <GHC.Types.Bool>_R)))
+                        `cast`
+                      (GHC.Types.N:IO[0] <GHC.Types.Bool>_R)
+                        ipv of ds2 { (#,#) ipv2 ipv3 ->
+                 case case ipv3 of wild {
+                        GHC.Types.False -> GHC.Types.True
+                        GHC.Types.True -> GHC.Types.False } of wild { DEFAULT ->
+                 (# ipv2, GHC.Tuple.() #) } } }) -}
+f3d5b46b2beb515094df581b40077f4a
+  ensureHomeDir2 :: [GHC.Types.Char]
+  {- Unfolding: (GHC.CString.unpackCString# ".haskell_client"#) -}
+af39b4a5cc205c1f2181a7051be5d61e
+  helloWorld :: GHC.Types.IO ()
+  {- Arity: 1, Strictness: <S,U>,
+     Unfolding: InlineRule (0, True, True)
+                Lib.helloWorld1 `cast` (Sym (GHC.Types.N:IO[0] <()>_R)) -}
+4c1c8128b07518ce3e4f3888b380fd1e
+  helloWorld1 ::
+    GHC.Prim.State# GHC.Prim.RealWorld
+    -> (# GHC.Prim.State# GHC.Prim.RealWorld, () #)
+  {- Arity: 1, Strictness: <S,U>,
+     Unfolding: (\ (eta :: GHC.Prim.State#
+                             GHC.Prim.RealWorld)[OneShot] ->
+                 GHC.IO.Handle.Text.hPutStr2
+                   GHC.IO.Handle.FD.stdout
+                   Lib.helloWorld2
+                   GHC.Types.True
+                   eta) -}
+a2237d12ebb5e0fd2a5d2f8aac1ceee1
+  helloWorld2 :: [GHC.Types.Char]
+  {- Unfolding: (GHC.CString.unpackCString# "Hello, world."#) -}
+b8efa56409e3cb8ff8fe362781f0b89e
+  host :: GHC.Base.String
+  {- Unfolding: (GHC.CString.unpackCString# "http://localhost"#) -}
+9adcf25abea81113ffc1fe759e2ea0af
+  port :: GHC.Base.String
+  {- Unfolding: (GHC.CString.unpackCString# "8081"#) -}
+bc23eab3499ddd950fe8577bfa5932ad
+  processArgs :: [GHC.Base.String] -> GHC.Types.IO ()
+  {- Arity: 2, Strictness: <S,1*U><S,U>,
+     Unfolding: InlineRule (0, True, True)
+                Lib.processArgs1
+                  `cast`
+                (<[GHC.Base.String]>_R ->_R Sym (GHC.Types.N:IO[0] <()>_R)) -}
+acaa2c6df62c0b70a8230f289de68c9b
+  processArgs1 ::
+    [GHC.Base.String]
+    -> GHC.Prim.State# GHC.Prim.RealWorld
+    -> (# GHC.Prim.State# GHC.Prim.RealWorld, () #)
+  {- Arity: 2, Strictness: <S,1*U><S,U>,
+     Unfolding: InlineRule (2, True, False)
+                (\ (ds :: [GHC.Base.String])
+                   (eta :: GHC.Prim.State# GHC.Prim.RealWorld)[OneShot] ->
+                 case ds of wild {
+                   [] -> Lib.processArgs4 eta
+                   : x xs
+                   -> case GHC.Base.eqString x Lib.processArgs3 of wild1 {
+                        GHC.Types.False
+                        -> case Lib.processArgs2
+                           ret_ty (# GHC.Prim.State# GHC.Prim.RealWorld, () #)
+                           of {}
+                        GHC.Types.True -> Lib.helloWorld1 eta } }) -}
+def7e4caabb4c5a6b7bfee8059aec175
+  processArgs2 :: GHC.Types.IO ()
+  {- Strictness: x -}
+dabc14ae836ddbac64e1983db5454805
+  processArgs3 :: [GHC.Types.Char]
+  {- Unfolding: (GHC.CString.unpackCString# "hello"#) -}
+fd11997b6e0e0cdad5399ea3b22bde6e
+  processArgs4 ::
+    GHC.Prim.State# GHC.Prim.RealWorld
+    -> (# GHC.Prim.State# GHC.Prim.RealWorld, () #)
+  {- Arity: 1, Strictness: <S,U>,
+     Unfolding: (\ (eta :: GHC.Prim.State#
+                             GHC.Prim.RealWorld)[OneShot] ->
+                 GHC.IO.Handle.Text.hPutStr2
+                   GHC.IO.Handle.FD.stdout
+                   Lib.processArgs5
+                   GHC.Types.True
+                   eta) -}
+2fab21b7fcb6fc633ab1f9eca333691c
+  processArgs5 :: [GHC.Types.Char]
+  {- Unfolding: (GHC.CString.unpackCString#
+                   "You didn't provide any args"#) -}
+e2b9ad14352cbecffe515da85ea276a6
+  someFunc :: GHC.Types.IO ()
+  {- Arity: 1, Strictness: <S,U>,
+     Unfolding: InlineRule (0, True, True)
+                Lib.someFunc1 `cast` (Sym (GHC.Types.N:IO[0] <()>_R)) -}
+40a8720cf53144cc8ba721a5353f4a0f
+  someFunc1 ::
+    GHC.Prim.State# GHC.Prim.RealWorld
+    -> (# GHC.Prim.State# GHC.Prim.RealWorld, () #)
+  {- Arity: 1, Strictness: <S,U>,
+     Unfolding: (\ (s :: GHC.Prim.State# GHC.Prim.RealWorld)[OneShot] ->
+                 case System.Environment.getArgs1 s of ds1 { (#,#) ipv ipv1 ->
+                 case ipv1 of wild {
+                   [] -> Lib.processArgs4 ipv
+                   : x xs
+                   -> case GHC.Base.eqString x Lib.processArgs3 of wild1 {
+                        GHC.Types.False
+                        -> case Lib.processArgs2
+                           ret_ty (# GHC.Prim.State# GHC.Prim.RealWorld, () #)
+                           of {}
+                        GHC.Types.True -> Lib.helloWorld1 ipv } } }) -}
+vectorised variables:
+vectorised tycons:
+vectorised reused tycons:
+parallel variables:
+parallel tycons:
+trusted: safe
+require own pkg trusted: False
+
