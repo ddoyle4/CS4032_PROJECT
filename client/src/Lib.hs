@@ -7,35 +7,6 @@ import System.Directory
 import Control.Monad
 import Data.List.Split
 
-
-data Server = AuthServer | FileServer 
-
-instance Show Server where
-  show FileServer = "The File Server"
-  show AuthServer = "The Authentification Server"
-
-
---reads connection info from an ETC Connection Info File
-readEtcConnectionFile :: Server -> IO [String]
-readEtcConnectionFile s = do
-  d <- etcDir
-  let pathEtc = d ++ etcFileName
-  ensureEtcExists s pathEtc
-  fileContents <- readFile pathEtc
-  return (splitOn "\n" fileContents)
-  where
-  etcFileName = case s of
-    AuthServer -> authServerEtc
-    FileServer -> fileServerEtc
-
---retrieves host:port info save on file, or requests from user if absent
-getConnectionInfo :: Server -> IO ConnectionInfo  
-getConnectionInfo s = do
-  details <- readEtcConnectionFile s
-  return (ConnectionInfo (details !! 0) (details !! 1))
-
-
-
 etcFilename :: String
 etcFilename = "/.haskell_client"
 
@@ -45,11 +16,58 @@ authServerEtc = "auth_server_ci"
 fileServerEtc :: String
 fileServerEtc = "file_server_ci"
 
+data Server = AuthServer | FileServer 
+
+instance Show Server where
+  show FileServer = "The File Server"
+  show AuthServer = "The Authentification Server"
+
+
+parseConnectionInfo :: String -> IO ConnectionInfo
+parseConnectionInfo str = do
+  let spl = splitOn "\n" str
+  return (ConnectionInfo (spl !! 0) (spl !! 1))
+
+writeEtcFile :: Server -> ConnectionInfo -> IO ()
+writeEtcFile p ci = do
+  let writeString = (hostAddr ci) ++ "\n" ++ (hostPort ci)
+  writeFile p writeString
+
+--queries user to create ETC file if it doesn't exist already
+ensureEtcExists :: Server -> String -> IO ()
+ensureEtcExists server fullPath = do
+  ex <- doesFileExist fullPath
+  when (not ex) (do
+    putStrLn ("Must enter information for" ++ (show server))
+    putStrLn "Please enter hostname:"
+    hostName <- getLine
+    putStrLn "Please enter port number:"
+    portNumber <- getLine
+    let ci = ConnectionInfo hostName portNumber
+    writeEtcFile fullPath ci)
+
+
+
+getConnectionInfo :: Server -> IO ConnectionInfo  
+getConnectionInfo s = do
+  basePath <- etcDir
+
+  fullPath <- 
+    case s of
+      AuthServer -> return (basePath ++ authServerEtc)
+      FileServer -> return (basePath ++ fileServerEtc)
+
+  ensureEtcExists s fullPath
+
+  fc <- readFile fullPath
+  ci <- parseConnectionInfo fc
+  return ci
+
+
 data ConnectionInfo = ConnectionInfo 
   { hostAddr :: String
   , hostPort :: String
   } deriving Show
-
 
 helloWorld :: IO ()
 helloWorld = liftIO $ do
@@ -84,7 +102,6 @@ someFunc :: IO ()
 someFunc = do
   args <- getArgs
   ensureHomeDir
-
   processArgs args
 
 
