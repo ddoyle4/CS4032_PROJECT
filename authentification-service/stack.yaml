@@ -15,16 +15,15 @@
 # resolver:
 #  name: custom-snapshot
 #  location: "./custom-snapshot.yaml"
-resolver: lts-7.11
-
+resolver: lts-7.10
 
 docker:
-  enable: false # warning!
+  enable: true # warning!
 
 # stack image container 
 image:
   container:
-    name: use-haskell
+    name: authentification-service
     base: fpco/stack-run
 
 # User packages to be built.
@@ -53,9 +52,11 @@ packages:
   - location:
       git: https://github.com/ddoyle4/file-system-api.git
       commit: 2e09d51
+
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
-extra-deps: [git-embed-0.1.0,  github-0.15.0, cabal-file-th-0.2.4, servant-client-0.9.1.1, servant-0.9.1.1, servant-server-0.9.1.1, http-api-data-0.3.2]
+extra-deps: [servant-client-0.9.1.1, servant-0.9.1.1, servant-server-0.9.1.1, http-api-data-0.3.2]
+
 
 # Override default flag values for local packages and extra-deps
 flags: {}
