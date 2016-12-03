@@ -1,11 +1,3 @@
--- This file is commented extensively for non-haskell programmers
-
--- | These are language extensions. Haskell has a great many language
--- extensions but in practice you do not need to knwo much about them. If you
--- use a library that needs them, then the library documentation will tell you which
--- extensions you neeed to include. If you try to write code that needs particular extensions,
--- then the haskell compiler is smart enough typically to be able to suggest which extensions
--- you should switch on by including an entry here.
 
 {-# LANGUAGE DataKinds            #-}
 {-# LANGUAGE DeriveAnyClass       #-}
@@ -18,20 +10,9 @@
 {-# LANGUAGE TypeOperators        #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
--- | Haskell code is structured as sets of functions that sit within Modules. The basic rule is that a module with a
--- particular name (for example Lib) sits within a .hs file of the same name (eg. Lib.hs). The module statement is of
--- the form `module MODULE_NAME (EXPORTED_FUNCTIONS) where`. Everything following this is part of the module. There are
--- no brackets or any other syntax to worry about.
 module Lib
     ( startApp
     ) where
-
--- | Imports work like most other languages and are essentially library includes. The functions of the lirbary become
--- immediately accessible in the code of the module. There are various ways in which imports can be modified. For
--- example, one may `import qualified X as Y` which imports a library in such a way that the functions of the library
--- must be prefixed with `Y.`. One can always prefix a libraries functions with the import string, when calling them.
--- You will occasionally have reason to import libraries that have common function names by coincidence. You can use
--- qualified imports of full prefixes to disambiguate. The compiler will tell you where the problem is if this occurs.
 
 import           Control.Concurrent           (forkIO, threadDelay)
 import           Control.Monad                (when)
@@ -54,6 +35,7 @@ import           Network.HTTP.Client          (defaultManagerSettings,
 import           Network.Wai
 import           Network.Wai.Handler.Warp
 import           Network.Wai.Logger
+import           RestClient
 import           Servant
 import qualified Servant.API                  as SC
 import qualified Servant.Client               as SC
@@ -65,74 +47,6 @@ import           System.Log.Handler.Syslog
 import           System.Log.Logger
 import           FileSystemAuthServerAPI
 
--- | The Servant library has a very elegant model for defining a REST API. We shall demonstrate here. First, we shall
--- define the data types that will be passed in the REST calls. We will define a simple data type that passes some data
--- from client to the server first. There is nothing special about the data being passed - this is a demonstration
--- only. data types are kind of like structs in C or C++.
-
--- Note that in this version of the project, I have moved the REST API into a shared library called use-haskell-api
--- This library is imported here in order that the HackageAPI type is available to create the REST service of that
--- type. Note that there is no advantage in doing this if you are only building a servant REST service, but if you are
--- creating a corresponding REST client, then following this architectural pattern simplifies development considerably.
-
--- The relevant code is thus commented out here and the use-haskell-api library content is used instead, and the
--- UseHaskellAPI namespace is imported from that library.
-
--- data Message = Message { name    :: String
---                        , message :: String
---                        } deriving (Generic, FromJSON, ToBSON, FromBSON)
-
--- deriving instance FromBSON String  -- we need these as BSON does not provide
--- deriving instance ToBSON   String
-
--- | We will also define a simple data type for returning data from a REST call, again with nothing special or
--- particular in the response, but instead merely as a demonstration.
-
--- data ResponseData = ResponseData { response :: String
---                                  } deriving (Generic, ToJSON, FromJSON,FromBSON)
-
--- | Next we will define the API for the REST service. This is defined as a 'type' using a special syntax from the
--- Servant Library. A REST endpoint is defined by chaining together a series of elements in the format `A :> B :> C`. A
--- set of rest endpoints are chained in the format `X :<|> Y :<|> Z`. We define a set of endpoints to demonstrate
--- functionality as described int he README.md file below.
---
--- Note in the API below that we can mix GET and Post methods. The type of call is determined by the last element in the
--- :> chain. If the method is Get, then the set of QueryParams determine the attributes of the Get call. If the method
--- is Post, then there will be a single ReqBody element that defines the type being transmitted. The return type for
--- each method is noted in the last element in the :> chain.
-
--- type API = "load_environment_variables" :> QueryParam "name" String :> Get '[JSON] ResponseData
---       :<|> "getREADME"                  :> Get '[JSON] ResponseData
---       :<|> "storeMessage"               :> ReqBody '[JSON] Message  :> Post '[JSON] Bool
---       :<|> "searchMessage"              :> QueryParam "name" String :> Get '[JSON] [ResponseData]
---       :<|> "performRESTCall"            :> QueryParam "filter" String  :> Get '[JSON] ResponseData
-
--- | Now that we have the Service API defined, we next move on to implementing the service. The startApp function is
--- called to start the application (in fact there is a main function in the file ../app/Main.hs, which is the entry
--- point to the executable, but by convention, it calls startApp in this file. startApp in turn calls a function `app`
--- defined below.
---
--- startApp is defind below on two lines. The first line is a type definition. It states that startApp returns no value
--- (denoted by `()`), but performs Input/Output. Haskell programmes are divided into code that performs I/O and code
--- that does not. The separation is very useful because I/O bound code can return different results even when passed the
--- same parameters (think about it) but non-I/O code will always return the same values for the same parameters. This
--- means we can reason about the correctness of non-I/O code more rigourously, and so the distinction is
--- worthwhile. However, the mixing of I/O and non-I/O code is one of the key problems beginning Haskell programmers have
--- with development of systems. If one fails to annotate type signatures correctly with `IO`, or write IO code
--- incorrectly, the type errors that the compiler generates are quite hard to decypher untill you understand how IO code
--- works. Firtunately its quite simple, and we shall explain below in function definitions.
---
--- A C++, Java or C programmer (amongst others) is used to a formatting of a function or method call of the form `A (X,
--- Y, Z)` where X, Y and Z are parameters passed to the execution of A. Haskell does not use the brackets, such that the
--- app function is defined entirely as a call to the serve function, passing it api and server. Note that these
--- parameters and both functions. In Haskell you can treat functions in an equivalent way to data.
---
--- Note that I have modified the standard implementation of startApp to include logging support, which is explained the
--- the text accompanying the function `withLogging` towards the end of this file.
---
--- I have added a second scheduled thread tot he startApp function to demonstrate how one can create a mutithteaded
--- server. The taskScheduler function is launched before teh startApp function enters its rest loop. The taskScheduler
--- function simply perfroms a loop with a 5 second delay, outputting a warning to the log on each pass.
 startApp :: IO ()    -- set up wai logger for service to output apache style logging for rest calls
 startApp = withLogging $ \ aplogger -> do
   warnLog "Starting use-haskell."
@@ -142,10 +56,6 @@ startApp = withLogging $ \ aplogger -> do
   let settings = setPort 8080 $ setLogger aplogger defaultSettings
   runSettings settings app
 
--- this is the original startApp that stack new servant builds
---startApp :: IO ()
---startApp = run 8080 app
-
 taskScheduler :: Int -> IO ()
 taskScheduler delay = do
   warnLog $ "Task scheduler operating."
@@ -153,25 +63,19 @@ taskScheduler delay = do
   threadDelay $ delay * 1000000
   taskScheduler delay -- tail recursion
 
--- | the function app calls serve, passing api and server. You can see that there is a kind of structure of function
--- composition here that is to do with how servant operates. The first parameter defines the type of the REST service,
--- (which is defined as type `Proxy API` - yes types of this formt are allowed - and we should note that the second part
--- of that type is out previously defined REST API) and the second parameter defines the implementation of the REST service.
 app :: Application
 app = serve api server
 
 api :: Proxy API
 api = Proxy
 
--- | And now we implement the REST service by matching the API type, providing a Handler method for each endpoint
--- defined in the API type. Normally we would implement each endpoint using a unique method definition, but this need
--- not be so. To add a news endpoint, define it in type API above, and add and implement a handler here.
 server :: Server API
 server = loadEnvironmentVariable
     :<|> getREADME
     :<|> storeMessage
     :<|> searchMessage
     :<|> performRESTCall
+    :<|> debugSaveUser
 
   where
     -- | where is just a way of ensuring that the following functions are scoped to the server function. Each function
@@ -346,11 +250,23 @@ server = loadEnvironmentVariable
              manager <- newManager defaultManagerSettings
              return (SC.ClientEnv manager (SC.BaseUrl SC.Http "hackage.haskell.org" 80 ""))
 
+    debugSaveUser :: User -> Handler Bool
+    debugSaveUser u@(User n p) = liftIO $ do 
+      withMongoDbConnection $ upsert (select ["name" =: n] "users") $ toBSON u
+      return True  -- this is a simple debug method - no need for error checking
 
--- What follows next is some helper function code that makes it easier to do warious things such as use
--- a mongoDB, post console log statements define environment variables for use in your programmes and so forth.
--- The code is not written particularly to be understood by novice Haskellers, but should be useable relatively easily
--- as set out above.
+{-
+    storeMessage msg@(Message key _) = liftIO $ do
+      warnLog $ "Storing message under key " ++ key ++ "."
+
+      -- upsert creates a new record if the identified record does not exist, or if
+      -- it does exist, it updates the record with the passed document content
+      -- As you can see, this takes a single line of code
+      withMongoDbConnection $ upsert (select ["name" =: key] "MESSAGE_RECORD") $ toBSON msg
+
+      return True  -- as this is a simple demo I'm not checking anything
+-}
+
 
 -- | error stuff
 custom404Error msg = err404 { errBody = msg }
@@ -385,10 +301,6 @@ withLogging act = withStdoutLogger $ \aplogger -> do
 
 -- | Mongodb helpers...
 
--- | helper to open connection to mongo database and run action
--- generally run as follows:
---        withMongoDbConnection $ do ...
---
 withMongoDbConnection :: Action IO a -> IO a
 withMongoDbConnection act  = do
   ip <- mongoDbIp
@@ -399,12 +311,6 @@ withMongoDbConnection act  = do
   close pipe
   return ret
 
--- | helper method to ensure we force extraction of all results
--- note how it is defined recursively - meaning that draincursor' calls itself.
--- the purpose is to iterate through all documents returned if the connection is
--- returning the documents in batch mode, meaning in batches of retruned results with more
--- to come on each call. The function recurses until there are no results left, building an
--- array of returned [Document]
 drainCursor :: Cursor -> Action IO [Document]
 drainCursor cur = drainCursor' cur []
   where
@@ -434,11 +340,6 @@ mongoDbDatabase = defEnv "MONGODB_DATABASE" id "USEHASKELLDB" True
 logLevel :: IO String
 logLevel = defEnv "LOG_LEVEL" id "DEBUG" True
 
-
--- | Helper function to simplify the setting of environment variables
--- function that looks up environment variable and returns the result of running funtion fn over it
--- or if the environment variable does not exist, returns the value def. The function will optionally log a
--- warning based on Boolean tag
 defEnv :: Show a
               => String        -- Environment Variable name
               -> (String -> a)  -- function to process variable string (set as 'id' if not needed)

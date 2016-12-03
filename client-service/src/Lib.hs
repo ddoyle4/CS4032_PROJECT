@@ -18,9 +18,8 @@ import qualified Servant.API                        as SC
 import qualified Servant.Client                     as SC
 import           System.Console.ANSI
 import           System.Environment
-import           UseHaskellAPI
-import           UseHaskellAPIClient
-
+import           FileSystemClientAPI
+import           FileSystemAuthServerAPI
 
 -- The code inside $( ) gets run at compile time. The functions run extract data from project files, both .git files and
 -- the .cabal file.
@@ -96,6 +95,8 @@ doSearchMessage s  = doCall $ searchMessage $ Just s
 doPerformRestCall :: Maybe String -> Maybe String -> Maybe String -> IO ()
 doPerformRestCall s  =  doCall $ performRestCall s
 
+doDebugSaveUser :: String -> String -> Maybe String -> Maybe String -> IO ()
+doDebugSaveUser n p = doCall $ debugSaveUser $ User n p
 
 -- | The options handling
 
@@ -143,7 +144,14 @@ opts = do
                                                                   <> short 's'
                                                                   <> help "The search string for the hackage call."))
                                            <*> serverIpOption
-                                           <*> serverPortOption) "Do a hackage rest call from the remote server." )))
+                                           <*> serverPortOption) "Do a hackage rest call from the remote server." )
+                                           
+                       <> command "debug-save-user"
+                                   (withInfo ( doDebugSaveUser
+                                           <$> argument str (metavar "Username")
+                                           <*> argument str (metavar "Userpassword")
+                                           <*> serverIpOption
+                                           <*> serverPortOption) "Save a user in the authentification database (debug method).") ))
              (  fullDesc
              <> progDesc (progName ++ " is a simple test client for the client service." ++
                           " Try " ++ whiteCode ++ progName ++ " --help " ++ resetCode ++ " for more information. To " ++
