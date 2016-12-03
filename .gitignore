@@ -3,3 +3,4 @@ client/.stack-work
 client/*.swp
 client-service/.stack-work
 authentification-service/.stack-work
+old-verisions/auth-service/.stack-work/
