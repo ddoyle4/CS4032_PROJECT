@@ -1,0 +1,424 @@
+
+==================== FINAL INTERFACE ====================
+2016-12-03 20:10:32.797394 UTC
+
+interface client-service-0.1.0.0-6zTcfledcURDoPycAA3PcP:Lib 8001
+  interface hash: ffbbfc3be666c66758e3415ee97f006d
+  ABI hash: ca3efa20b00eaa6a14a3c5970efce2d0
+  export-list hash: 5e26b7675a156805f36b03b0c6e3adcf
+  orphan hash: 693e9af84d3dfcc71e640e005bdc5e2e
+  flag hash: 2f6d46515a937969799008ff173b1bfb
+  sig of: Nothing
+  used TH splices: True
+  where
+exports:
+  Lib.someFunc
+module dependencies:
+package dependencies: Cabal-1.24.1.0@Cabal-1.24.1.0-IrwQRxLtBmMIrR1JspkXtd
+                      aeson-0.11.2.1@aeson-0.11.2.1-5ZQWuTFmffALcfpzDCXoOz
+                      ansi-terminal-0.6.2.3@ansi-terminal-0.6.2.3-448ipfN5j28Ha0AgPiJmdI
+                      ansi-wl-pprint-0.6.7.3@ansi-wl-pprint-0.6.7.3-LVnipygDrAR1FEMFhjxcQX
+                      array-0.5.1.1@array-0.5.1.1
+                      attoparsec-0.13.1.0@attoparsec-0.13.1.0-5Olk1S76r1CDYzFS6V3sZR
+                      base-4.9.0.0
+                      base-compat-0.9.1@base-compat-0.9.1-tmPpmtbHbvIDjFWbkjGrR
+                      base64-bytestring-1.0.0.1@base64-bytestring-1.0.0.1-In9M41tLtcS9QYt3QpGpNY
+                      binary-0.8.3.0@binary-0.8.3.0
+                      blaze-builder-0.4.0.2@blaze-builder-0.4.0.2-KWDLbdBYSBoALiMW0LHIz1
+                      blaze-html-0.8.1.2@blaze-html-0.8.1.2-2kD96kJB6JEGow1dP8IL6C
+                      blaze-markup-0.7.1.0@blaze-markup-0.7.1.0-5a5pBG0fO8kJX4ke3K7j3D
+                      bson-0.3.2.3@bson-0.3.2.3-3QA3aP5EtCyCltXUzEKOsQ
+                      bson-generic-0.0.8@bson-generic-0.0.8-DtORpoUHwQhDReLJ5Keop0
+                      bytestring-0.10.8.1@bytestring-0.10.8.1
+                      cabal-file-th-0.2.4@cabal-file-th-0.2.4-I7ua9it25PEGrh8Rlti4IV
+                      case-insensitive-1.2.0.7@case-insensitive-1.2.0.7-FlqweN7AuKj9EdU2arVEt4
+                      containers-0.5.7.1@containers-0.5.7.1
+                      cookie-0.4.2.1@cookie-0.4.2.1-2a2c54yIyBn79Ul3iLWclJ
+                      cryptohash-0.11.9@cryptohash-0.11.9-9KNu0EEbreBFrmNJAeHgYz
+                      cryptonite-0.19@cryptonite-0.19-G9PYO4oOEqhDTta2u9rAaU
+                      data-default-class-0.1.2.0@data-default-class-0.1.2.0-FYQpjIylblBDctdkHAFeXA
+                      deepseq-1.4.2.0@deepseq-1.4.2.0 directory-1.2.6.2@directory-1.2.6.2
+                      dlist-0.8.0.2@dlist-0.8.0.2-GWAMmbX9rLg3tqrbOizHGv
+                      exceptions-0.8.3@exceptions-0.8.3-7py7fmRxowDFpHmiHGKrTb
+                      file-embed-0.0.10@file-embed-0.0.10-IXfudWSq57y1Athysk5ifZ
+                      filepath-1.4.1.0@filepath-1.4.1.0
+                      ghc-boot-th-8.0.1@ghc-boot-th-8.0.1 ghc-prim-0.5.0.0
+                      git-embed-0.1.0@git-embed-0.1.0-4j7DYtMbvJf6OJIRiZDWpA
+                      hashable-1.2.4.0@hashable-1.2.4.0-EMu4H7FB10MAl6hwKw992G
+                      http-api-data-0.3.2@http-api-data-0.3.2-A22DPUhAmUlrIoBZ4qkGB
+                      http-client-0.4.31.2@http-client-0.4.31.2-81NyMkNcWWADaJ0Cq5FYRE
+                      http-date-0.0.6.1@http-date-0.0.6.1-150spKQYCuoIrltdbMmYGs
+                      http-media-0.6.4@http-media-0.6.4-82jDVCpdN5H696EFF5l5I4
+                      http-types-0.9.1@http-types-0.9.1-8WdUZL4twHzANJbxvb1Aoj
+                      integer-gmp-1.0.0.1 memory-0.13@memory-0.13-ABHR5331zHK9scHPRr7afU
+                      mime-types-0.1.0.7@mime-types-0.1.0.7-AxQ64wFjikqCSdK5pSeZvh
+                      mmorph-1.0.9@mmorph-1.0.9-DmSwQqk5nLj7roLAcydGz
+                      mtl-2.2.1@mtl-2.2.1-6qsR1PHUy5lL47Hpoa4jCM
+                      network-2.6.3.1@network-2.6.3.1-G4Up1CPKbp7DeFsnywOnGG
+                      network-uri-2.6.1.0@network-uri-2.6.1.0-DDHh2FNiPirBRgkuU9DEt2
+                      optparse-applicative-0.12.1.0@optparse-applicative-0.12.1.0-LOTKI1ZYRJkF3RPPjfyooJ
+                      parsec-3.1.11@parsec-3.1.11-BCos4GEVCuDB8dnOCBHO6X
+                      pretty-1.1.3.3@pretty-1.1.3.3
+                      primitive-0.6.1.0@primitive-0.6.1.0-Ip44DqhfCp21tTUYbecwa
+                      process-1.4.2.0@process-1.4.2.0
+                      random-1.1@random-1.1-54KmMHXjttlERYcr1mvsAe
+                      safe-0.3.10@safe-0.3.10-1VyrsjWhmjvGnGud5lgW7f
+                      scientific-0.3.4.9@scientific-0.3.4.9-6oTYuCcx6H5BsTGU7D2Gk3
+                      servant-0.9.1.1@servant-0.9.1.1-JzVvK9yk6sQ1E4UZympEK1
+                      servant-client-0.9.1.1@servant-client-0.9.1.1-7lQAZsyAaJ72BqeYIUKx5k
+                      servant-server-0.9.1.1@servant-server-0.9.1.1-GDiTZj9IwnSAm1qa7JeWqS
+                      stm-2.4.4.1@stm-2.4.4.1-4z2NRWnB0NIIUvSJsHW0kF
+                      streaming-commons-0.1.16@streaming-commons-0.1.16-KtRawhq8O97EWCabefpk66
+                      string-conversions-0.4@string-conversions-0.4-8T0UFmRDEly2gsNJzmHrNQ
+                      tagged-0.8.5@tagged-0.8.5-CtgV6EcN0do8F92i1S6iYx
+                      template-haskell-2.11.0.0
+                      text-1.2.2.1@text-1.2.2.1-5QpmrLQApEZ4Ly9nMHWY0s
+                      time-1.6.0.1@time-1.6.0.1
+                      time-locale-compat-0.1.1.3@time-locale-compat-0.1.1.3-1j5dGjxxtiTDuAsO86iSk0
+                      transformers-0.5.2.0@transformers-0.5.2.0 unix-2.7.2.0@unix-2.7.2.0
+                      unix-compat-0.4.2.0@unix-compat-0.4.2.0-GNHotEMWE5dJ4oYFhgibIV
+                      unordered-containers-0.2.7.1@unordered-containers-0.2.7.1-Eo9jd5DMz45DhBLCG8skzW
+                      uri-bytestring-0.2.2.1@uri-bytestring-0.2.2.1-LMJUdG9s1QpIQ10mPWMO6d
+                      use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-FHtwOG5JNeRLTVu1RcKIxE
+                      utf8-string-1.0.1.1@utf8-string-1.0.1.1-2T8mBCuEDlXDo8zed8Onw4
+                      uuid-types-1.0.3@uuid-types-1.0.3-1qmdgBeDGlbCUibOmxVGqx
+                      vault-0.3.0.6@vault-0.3.0.6-CA9Xj82tAPe9nD32xVMgDG
+                      vector-0.11.0.0@vector-0.11.0.0-BEDZb5o2QOhGbIm6ky7rl6
+                      wai-3.2.1.1@wai-3.2.1.1-f77bMYZGLQBAD3XJrvGiW
+                      wai-app-static-3.1.6.1@wai-app-static-3.1.6.1-6csRgbgolyoCCOLw42RlBs
+                      word8-0.1.2@word8-0.1.2-2E1SgvvAV2fK8vZPDHbRan
+                      zlib-0.6.1.2@zlib-0.6.1.2-4CWLN1T27kOJhNvXgy46ZV
+orphans: aeson-0.11.2.1@aeson-0.11.2.1-5ZQWuTFmffALcfpzDCXoOz:Data.Aeson.Types.Generic
+         aeson-0.11.2.1@aeson-0.11.2.1-5ZQWuTFmffALcfpzDCXoOz:Data.Aeson.Types.Instances
+         attoparsec-0.13.1.0@attoparsec-0.13.1.0-5Olk1S76r1CDYzFS6V3sZR:Data.Attoparsec.ByteString.Char8
+         attoparsec-0.13.1.0@attoparsec-0.13.1.0-5Olk1S76r1CDYzFS6V3sZR:Data.Attoparsec.Text.Internal
+         base-4.9.0.0:GHC.Base base-4.9.0.0:GHC.Float
+         binary-0.8.3.0@binary-0.8.3.0:Data.Binary.Generic
+         bson-generic-0.0.8@bson-generic-0.0.8-DtORpoUHwQhDReLJ5Keop0:Data.Bson.Generic
+         bytestring-0.10.8.1@bytestring-0.10.8.1:Data.ByteString.Builder
+         hashable-1.2.4.0@hashable-1.2.4.0-EMu4H7FB10MAl6hwKw992G:Data.Hashable.Generic
+         http-client-0.4.31.2@http-client-0.4.31.2-81NyMkNcWWADaJ0Cq5FYRE:Network.HTTP.Client.Request
+         network-2.6.3.1@network-2.6.3.1-G4Up1CPKbp7DeFsnywOnGG:Network.Socket
+         stm-2.4.4.1@stm-2.4.4.1-4z2NRWnB0NIIUvSJsHW0kF:Control.Monad.STM
+         text-1.2.2.1@text-1.2.2.1-5QpmrLQApEZ4Ly9nMHWY0s:Data.Text
+         text-1.2.2.1@text-1.2.2.1-5QpmrLQApEZ4Ly9nMHWY0s:Data.Text.Lazy
+         text-1.2.2.1@text-1.2.2.1-5QpmrLQApEZ4Ly9nMHWY0s:Data.Text.Show
+         time-1.6.0.1@time-1.6.0.1:Data.Time.Calendar.Gregorian
+         time-1.6.0.1@time-1.6.0.1:Data.Time.Format.Parse
+         time-1.6.0.1@time-1.6.0.1:Data.Time.LocalTime.LocalTime
+         transformers-0.5.2.0@transformers-0.5.2.0:Control.Monad.Trans.Error
+         use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-FHtwOG5JNeRLTVu1RcKIxE:UseHaskellAPI
+         vector-0.11.0.0@vector-0.11.0.0-BEDZb5o2QOhGbIm6ky7rl6:Data.Vector.Fusion.Bundle
+         vector-0.11.0.0@vector-0.11.0.0-BEDZb5o2QOhGbIm6ky7rl6:Data.Vector.Unboxed
+family instance modules: Cabal-1.24.1.0@Cabal-1.24.1.0-IrwQRxLtBmMIrR1JspkXtd:Distribution.Compat.Semigroup
+                         Cabal-1.24.1.0@Cabal-1.24.1.0-IrwQRxLtBmMIrR1JspkXtd:Distribution.Compiler
+                         Cabal-1.24.1.0@Cabal-1.24.1.0-IrwQRxLtBmMIrR1JspkXtd:Distribution.License
+                         Cabal-1.24.1.0@Cabal-1.24.1.0-IrwQRxLtBmMIrR1JspkXtd:Distribution.ModuleName
+                         Cabal-1.24.1.0@Cabal-1.24.1.0-IrwQRxLtBmMIrR1JspkXtd:Distribution.Package
+                         Cabal-1.24.1.0@Cabal-1.24.1.0-IrwQRxLtBmMIrR1JspkXtd:Distribution.PackageDescription
+                         Cabal-1.24.1.0@Cabal-1.24.1.0-IrwQRxLtBmMIrR1JspkXtd:Distribution.System
+                         Cabal-1.24.1.0@Cabal-1.24.1.0-IrwQRxLtBmMIrR1JspkXtd:Distribution.Verbosity
+                         Cabal-1.24.1.0@Cabal-1.24.1.0-IrwQRxLtBmMIrR1JspkXtd:Distribution.Version
+                         Cabal-1.24.1.0@Cabal-1.24.1.0-IrwQRxLtBmMIrR1JspkXtd:Language.Haskell.Extension
+                         attoparsec-0.13.1.0@attoparsec-0.13.1.0-5Olk1S76r1CDYzFS6V3sZR:Data.Attoparsec.Internal.Types
+                         base-4.9.0.0:Control.Applicative base-4.9.0.0:Data.Complex
+                         base-4.9.0.0:Data.Either base-4.9.0.0:Data.Functor.Compose
+                         base-4.9.0.0:Data.Functor.Const base-4.9.0.0:Data.Functor.Identity
+                         base-4.9.0.0:Data.Functor.Product base-4.9.0.0:Data.List.NonEmpty
+                         base-4.9.0.0:Data.Monoid base-4.9.0.0:Data.Semigroup
+                         base-4.9.0.0:Data.Type.Equality base-4.9.0.0:Data.Version
+                         base-4.9.0.0:Data.Void base-4.9.0.0:GHC.Exts
+                         base-4.9.0.0:GHC.Generics base-4.9.0.0:GHC.IO.Exception
+                         base-4.9.0.0:GHC.TypeLits
+                         bson-generic-0.0.8@bson-generic-0.0.8-DtORpoUHwQhDReLJ5Keop0:Data.Bson.Generic
+                         containers-0.5.7.1@containers-0.5.7.1:Data.IntMap.Base
+                         containers-0.5.7.1@containers-0.5.7.1:Data.IntSet.Base
+                         containers-0.5.7.1@containers-0.5.7.1:Data.Map.Base
+                         containers-0.5.7.1@containers-0.5.7.1:Data.Sequence
+                         containers-0.5.7.1@containers-0.5.7.1:Data.Set.Base
+                         dlist-0.8.0.2@dlist-0.8.0.2-GWAMmbX9rLg3tqrbOizHGv:Data.DList
+                         ghc-boot-th-8.0.1@ghc-boot-th-8.0.1:GHC.LanguageExtensions.Type
+                         http-api-data-0.3.2@http-api-data-0.3.2-A22DPUhAmUlrIoBZ4qkGB:Web.Internal.FormUrlEncoded
+                         http-client-0.4.31.2@http-client-0.4.31.2-81NyMkNcWWADaJ0Cq5FYRE:Network.HTTP.Client
+                         network-uri-2.6.1.0@network-uri-2.6.1.0-DDHh2FNiPirBRgkuU9DEt2:Network.URI
+                         pretty-1.1.3.3@pretty-1.1.3.3:Text.PrettyPrint.Annotated.HughesPJ
+                         pretty-1.1.3.3@pretty-1.1.3.3:Text.PrettyPrint.HughesPJ
+                         primitive-0.6.1.0@primitive-0.6.1.0-Ip44DqhfCp21tTUYbecwa:Control.Monad.Primitive
+                         servant-0.9.1.1@servant-0.9.1.1-JzVvK9yk6sQ1E4UZympEK1:Servant.API.ContentTypes
+                         servant-0.9.1.1@servant-0.9.1.1-JzVvK9yk6sQ1E4UZympEK1:Servant.API.IsSecure
+                         servant-0.9.1.1@servant-0.9.1.1-JzVvK9yk6sQ1E4UZympEK1:Servant.API.Verbs
+                         servant-0.9.1.1@servant-0.9.1.1-JzVvK9yk6sQ1E4UZympEK1:Servant.Utils.Links
+                         servant-client-0.9.1.1@servant-client-0.9.1.1-7lQAZsyAaJ72BqeYIUKx5k:Servant.Client
+                         servant-client-0.9.1.1@servant-client-0.9.1.1-7lQAZsyAaJ72BqeYIUKx5k:Servant.Common.BaseUrl
+                         servant-client-0.9.1.1@servant-client-0.9.1.1-7lQAZsyAaJ72BqeYIUKx5k:Servant.Common.Req
+                         servant-server-0.9.1.1@servant-server-0.9.1.1-GDiTZj9IwnSAm1qa7JeWqS:Servant.Server.Internal
+                         servant-server-0.9.1.1@servant-server-0.9.1.1-GDiTZj9IwnSAm1qa7JeWqS:Servant.Server.Internal.BasicAuth
+                         tagged-0.8.5@tagged-0.8.5-CtgV6EcN0do8F92i1S6iYx:Data.Tagged
+                         template-haskell-2.11.0.0:Language.Haskell.TH.Syntax
+                         text-1.2.2.1@text-1.2.2.1-5QpmrLQApEZ4Ly9nMHWY0s:Data.Text
+                         text-1.2.2.1@text-1.2.2.1-5QpmrLQApEZ4Ly9nMHWY0s:Data.Text.Lazy
+                         unordered-containers-0.2.7.1@unordered-containers-0.2.7.1-Eo9jd5DMz45DhBLCG8skzW:Data.HashMap.Base
+                         unordered-containers-0.2.7.1@unordered-containers-0.2.7.1-Eo9jd5DMz45DhBLCG8skzW:Data.HashSet
+                         uri-bytestring-0.2.2.1@uri-bytestring-0.2.2.1-LMJUdG9s1QpIQ10mPWMO6d:URI.ByteString.Types
+                         use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-FHtwOG5JNeRLTVu1RcKIxE:UseHaskellAPI
+                         uuid-types-1.0.3@uuid-types-1.0.3-1qmdgBeDGlbCUibOmxVGqx:Data.UUID.Types.Internal
+                         uuid-types-1.0.3@uuid-types-1.0.3-1qmdgBeDGlbCUibOmxVGqx:Data.UUID.Types.Internal.Builder
+                         vector-0.11.0.0@vector-0.11.0.0-BEDZb5o2QOhGbIm6ky7rl6:Data.Vector
+                         vector-0.11.0.0@vector-0.11.0.0-BEDZb5o2QOhGbIm6ky7rl6:Data.Vector.Primitive
+                         vector-0.11.0.0@vector-0.11.0.0-BEDZb5o2QOhGbIm6ky7rl6:Data.Vector.Storable
+                         vector-0.11.0.0@vector-0.11.0.0-BEDZb5o2QOhGbIm6ky7rl6:Data.Vector.Unboxed
+                         vector-0.11.0.0@vector-0.11.0.0-BEDZb5o2QOhGbIm6ky7rl6:Data.Vector.Unboxed.Base
+                         zlib-0.6.1.2@zlib-0.6.1.2-4CWLN1T27kOJhNvXgy46ZV:Codec.Compression.Zlib.Stream
+import  -/  Cabal-1.24.1.0@Cabal-1.24.1.0-IrwQRxLtBmMIrR1JspkXtd:Distribution.Package 65143b2a070597a2d57c6ad321e91ca0
+import  -/  Cabal-1.24.1.0@Cabal-1.24.1.0-IrwQRxLtBmMIrR1JspkXtd:Distribution.PackageDescription cadf58629e546346a7bfb5cc6745c973
+import  -/  ansi-terminal-0.6.2.3@ansi-terminal-0.6.2.3-448ipfN5j28Ha0AgPiJmdI:System.Console.ANSI 1565f362ecfef470e206e8f337ab1f4d
+import  -/  ansi-terminal-0.6.2.3@ansi-terminal-0.6.2.3-448ipfN5j28Ha0AgPiJmdI:System.Console.ANSI.Common 24b0e5493e83ac3d41ce56ed4609c6c7
+import  -/  ansi-terminal-0.6.2.3@ansi-terminal-0.6.2.3-448ipfN5j28Ha0AgPiJmdI:System.Console.ANSI.Unix 27d28df4076211715f9e8c3aa4c39751
+import  -/  base-4.9.0.0:Control.Applicative 7728b33d6969dce59e89474349eb1397
+import  -/  base-4.9.0.0:Control.Monad 7767aebfd53f0b584cef2fe66ad3986c
+import  -/  base-4.9.0.0:Data.Either bd9f099b82d4ed2d98c56d7144ac6957
+import  -/  base-4.9.0.0:Data.Functor 6fc476505db88d678632a4a838125f13
+import  -/  base-4.9.0.0:Data.List 49b86831b79b49ce5d4d9416ecba61df
+import  -/  base-4.9.0.0:Data.Monoid 1efae021212a10c79fd75960dc0a1d99
+import  -/  base-4.9.0.0:Data.OldList 0058409f994fb13ae0616e3f1e5b4dae
+import  -/  base-4.9.0.0:GHC.Base 8ed3be81c0707b322f975a84ae1bb816
+import  -/  base-4.9.0.0:GHC.Show 952347a6ab730bcb25c0854d8bc6ca51
+import  -/  base-4.9.0.0:Prelude b9bddb97799837fe67a8d00939a5b6c3
+import  -/  base-4.9.0.0:System.Environment ee0914a962f5508d0fd404c89ee4999b
+import  -/  base-4.9.0.0:System.IO eb1d40aa793a4047069a5023f2ebcfe3
+import  -/  base-4.9.0.0:Text.Read 9c1be14f7e5eac8b18bcb566c5763677
+import  -/  cabal-file-th-0.2.4@cabal-file-th-0.2.4-I7ua9it25PEGrh8Rlti4IV:Distribution.PackageDescription.TH c5eada7dee2d6b62ef51c19976281c74
+import  -/  ghc-prim-0.5.0.0:GHC.Types 7378e41b7749213c8c88ceb6b0665d4c
+import  -/  git-embed-0.1.0@git-embed-0.1.0-4j7DYtMbvJf6OJIRiZDWpA:Git.Embed 770828050be29dc5e3f13f4d3eae7a07
+import  -/  http-client-0.4.31.2@http-client-0.4.31.2-81NyMkNcWWADaJ0Cq5FYRE:Network.HTTP.Client 8c31602f44dbd2cc18bd07c76bc0453c
+import  -/  http-client-0.4.31.2@http-client-0.4.31.2-81NyMkNcWWADaJ0Cq5FYRE:Network.HTTP.Client.Manager e07649b973bb21d02bf327f94e8a831b
+import  -/  optparse-applicative-0.12.1.0@optparse-applicative-0.12.1.0-LOTKI1ZYRJkF3RPPjfyooJ:Options.Applicative 031c88d485c50b485154c1052ead17f6
+import  -/  optparse-applicative-0.12.1.0@optparse-applicative-0.12.1.0-LOTKI1ZYRJkF3RPPjfyooJ:Options.Applicative.Builder 3a6eae459efd37ad249a0debb46d23c8
+import  -/  optparse-applicative-0.12.1.0@optparse-applicative-0.12.1.0-LOTKI1ZYRJkF3RPPjfyooJ:Options.Applicative.Extra 0631fb19461b4d86718462c74fa1f864
+import  -/  optparse-applicative-0.12.1.0@optparse-applicative-0.12.1.0-LOTKI1ZYRJkF3RPPjfyooJ:Options.Applicative.Types 036a614c38cc82a70634cd11ce8cd86f
+import  -/  servant-0.9.1.1@servant-0.9.1.1-JzVvK9yk6sQ1E4UZympEK1:Servant.API 0037a8ec5e3d7af775970baa2c52d7c1
+import  -/  servant-client-0.9.1.1@servant-client-0.9.1.1-7lQAZsyAaJ72BqeYIUKx5k:Servant.Client 69dcadc80d0b3d49c861435174fc878e
+import  -/  servant-client-0.9.1.1@servant-client-0.9.1.1-7lQAZsyAaJ72BqeYIUKx5k:Servant.Common.BaseUrl 6949c876d4e898df5aafd4b9ea7e47bb
+import  -/  servant-client-0.9.1.1@servant-client-0.9.1.1-7lQAZsyAaJ72BqeYIUKx5k:Servant.Common.Req 14b56b4f61ff5bce4d74e286245cd3f0
+import  -/  use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-FHtwOG5JNeRLTVu1RcKIxE:UseHaskellAPI 85851fb2c12928aad2ae92bb3062664f
+import  -/  use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-FHtwOG5JNeRLTVu1RcKIxE:UseHaskellAPIClient 20b04440b9210095593121c6ef46b700
+addDependentFile "../.git/refs/remotes/origin/master"
+addDependentFile "../.git/refs/heads/master"
+addDependentFile "../.git/HEAD"
+addDependentFile "../.git/refs/remotes/origin/master"
+addDependentFile "../.git/refs/heads/master"
+addDependentFile "../.git/HEAD"
+a5d0d872cc74ba004dff38a868f7765b
+  $fPrintResponseBool :: Lib.PrintResponse GHC.Types.Bool
+  DFunId
+  {- Arity: 2, Strictness: <L,A><S,1*U>, Inline: INLINE (sat-args=0),
+     Unfolding: InlineRule (0, False, True)
+                Lib.$fPrintResponseBool_$cresp
+                  `cast`
+                (Sym (Lib.N:PrintResponse[0] <GHC.Types.Bool>_N)) -}
+e6ff2ed7e762bf0e21d75c8afdadd2bc
+  $fPrintResponseBool1 :: [GHC.Types.Char]
+  {- Unfolding: (GHC.CString.unpackCString#
+                   "Response is a boolean : Totally!"#) -}
+147168088cfe07bd4ceaf0c94ed6471d
+  $fPrintResponseBool2 :: [GHC.Types.Char]
+  {- Unfolding: (GHC.CString.unpackCString#
+                   "Response is a boolean : Like No Way!"#) -}
+5a6c6550b91166d1cba80769447575d5
+  $fPrintResponseBool_$cresp ::
+    GHC.Show.Show GHC.Types.Bool => GHC.Types.Bool -> GHC.Base.String
+  {- Arity: 2, Strictness: <L,A><S,1*U>,
+     Unfolding: InlineRule (2, True, False)
+                (\ ($dShow :: GHC.Show.Show GHC.Types.Bool)
+                   (ds1 :: GHC.Types.Bool) ->
+                 case ds1 of wild {
+                   GHC.Types.False -> Lib.$fPrintResponseBool2
+                   GHC.Types.True -> Lib.$fPrintResponseBool1 }) -}
+a5d0d872cc74ba004dff38a868f7765b
+  $fPrintResponseResponseData ::
+    Lib.PrintResponse UseHaskellAPI.ResponseData
+  DFunId
+  {- Arity: 2, HasNoCafRefs, Strictness: <L,A><L,1*U(1*U)>,
+     Inline: INLINE (sat-args=0),
+     Unfolding: InlineRule (0, False, True)
+                Lib.$fPrintResponseResponseData_$cresp
+                  `cast`
+                (Sym (Lib.N:PrintResponse[0] <UseHaskellAPI.ResponseData>_N)) -}
+f57285881cce95a4e8d3e817f5c3a1c2
+  $fPrintResponseResponseData1 ::
+    (GHC.Types.Char -> b -> b) -> b -> b
+  {- Arity: 2, HasNoCafRefs, Strictness: <L,C(C1(U))><L,U>,
+     Unfolding: (\ @ b
+                   (c :: GHC.Types.Char -> b -> b)[OneShot]
+                   (n4 :: b)[OneShot] ->
+                 GHC.CString.unpackFoldrCString#
+                   @ b
+                   "Response is a single value: "#
+                   c
+                   n4) -}
+faf818b2260fd79d04b7c773be5cddc3
+  $fPrintResponseResponseData_$cresp ::
+    GHC.Show.Show UseHaskellAPI.ResponseData =>
+    UseHaskellAPI.ResponseData -> GHC.Base.String
+  {- Arity: 2, HasNoCafRefs, Strictness: <L,A><L,1*U(1*U)>,
+     Unfolding: InlineRule (2, True, False)
+                (\ ($dShow :: GHC.Show.Show UseHaskellAPI.ResponseData)
+                   (r :: UseHaskellAPI.ResponseData) ->
+                 Lib.$fPrintResponseResponseData1
+                   @ [GHC.Types.Char]
+                   (GHC.Types.: @ GHC.Types.Char)
+                   (case r of wild { UseHaskellAPI.ResponseData ds1 -> ds1 })) -}
+a5d0d872cc74ba004dff38a868f7765b
+  $fPrintResponse[] :: Lib.PrintResponse [UseHaskellAPI.ResponseData]
+  DFunId
+  {- Arity: 2, Strictness: <L,A><L,1*U>, Inline: INLINE (sat-args=0),
+     Unfolding: InlineRule (0, False, True)
+                Lib.$fPrintResponse[]_$cresp
+                  `cast`
+                (Sym (Lib.N:PrintResponse[0] <[UseHaskellAPI.ResponseData]>_N)) -}
+a5d0d872cc74ba004dff38a868f7765b
+  $fPrintResponse[]0 :: Lib.PrintResponse [UseHaskellAPI.Message]
+  DFunId
+  {- Arity: 2, Strictness: <L,A><S,1*U>, Inline: INLINE (sat-args=0),
+     Unfolding: InlineRule (0, False, True)
+                Lib.$fPrintResponse[]0_$cresp
+                  `cast`
+                (Sym (Lib.N:PrintResponse[0] <[UseHaskellAPI.Message]>_N)) -}
+2466ea6806dec09c117eecd4438f1a74
+  $fPrintResponse[]0_$cresp ::
+    GHC.Show.Show [UseHaskellAPI.Message] =>
+    [UseHaskellAPI.Message] -> GHC.Base.String
+  {- Arity: 2, Strictness: <L,A><S,1*U>, Inline: INLINE[0],
+     Unfolding: InlineRule (2, True, True)
+                (\ (w :: GHC.Show.Show [UseHaskellAPI.Message])
+                   (w1 :: [UseHaskellAPI.Message]) ->
+                 Lib.$w$cresp1 w1) -}
+f3d4531ffa68567d3340cc4e61e9140a
+  $fPrintResponse[]1 :: [GHC.Types.Char]
+  {- Unfolding: (GHC.CString.unpackCString# ", "#) -}
+82304e594a1157c3b80e4c2b59e89586
+  $fPrintResponse[]2 :: [GHC.Types.Char]
+  {- Unfolding: (GHC.CString.unpackCString# "No messages."#) -}
+c7a3ac368acda937559bb8a675cf60a9
+  $fPrintResponse[]_$cresp ::
+    GHC.Show.Show [UseHaskellAPI.ResponseData] =>
+    [UseHaskellAPI.ResponseData] -> GHC.Base.String
+  {- Arity: 2, Strictness: <L,A><L,1*U>, Inline: INLINE[0],
+     Unfolding: InlineRule (2, True, True)
+                (\ (w :: GHC.Show.Show [UseHaskellAPI.ResponseData])
+                   (w1 :: [UseHaskellAPI.ResponseData]) ->
+                 Lib.$w$cresp w1) -}
+4fbf7165f578738208a6c30a88364d00
+  $tc'C:PrintResponse :: GHC.Types.TyCon
+  {- HasNoCafRefs, Strictness: m,
+     Unfolding: (GHC.Types.TyCon
+                   8962117412575661017##
+                   16816487999993977290##
+                   Lib.$trModule
+                   Lib.$tc'C:PrintResponse1) -}
+97af3952ddab9cb985784f0a0a76f18a
+  $tc'C:PrintResponse1 :: GHC.Types.TrName
+  {- HasNoCafRefs, Strictness: m1,
+     Unfolding: (GHC.Types.TrNameS "'C:PrintResponse"#) -}
+3931b87f63155995bfd90f1853a629de
+  $tcPrintResponse :: GHC.Types.TyCon
+  {- HasNoCafRefs, Strictness: m,
+     Unfolding: (GHC.Types.TyCon
+                   3013761164395217013##
+                   7814065841220415027##
+                   Lib.$trModule
+                   Lib.$tcPrintResponse1) -}
+fd4efa2049edc67b43310cca63e2ffe7
+  $tcPrintResponse1 :: GHC.Types.TrName
+  {- HasNoCafRefs, Strictness: m1,
+     Unfolding: (GHC.Types.TrNameS "PrintResponse"#) -}
+3b4d9b2d9ba0344940ac923a909eb653
+  $trModule :: GHC.Types.Module
+  {- HasNoCafRefs, Strictness: m,
+     Unfolding: (GHC.Types.Module Lib.$trModule2 Lib.$trModule1) -}
+f57add9dab023407645c09611f18ac46
+  $trModule1 :: GHC.Types.TrName
+  {- HasNoCafRefs, Strictness: m1,
+     Unfolding: (GHC.Types.TrNameS "Lib"#) -}
+cf7ca6cdb050ebcd0e31d67fc37d74b7
+  $trModule2 :: GHC.Types.TrName
+  {- HasNoCafRefs, Strictness: m1,
+     Unfolding: (GHC.Types.TrNameS
+                   "client-service-0.1.0.0-6zTcfledcURDoPycAA3PcP"#) -}
+8497038e943ce0bbd8b46c15f851fef2
+  $w$cresp :: [UseHaskellAPI.ResponseData] -> [GHC.Types.Char]
+  {- Arity: 1, Strictness: <L,1*U>, Inline: [0],
+     Unfolding: (\ (w :: [UseHaskellAPI.ResponseData]) ->
+                 GHC.CString.unpackAppendCString#
+                   "Response is an array with values: "#
+                   (case GHC.Base.map
+                           @ UseHaskellAPI.ResponseData
+                           @ [GHC.Types.Char]
+                           UseHaskellAPI.response
+                           w of wild {
+                      [] -> GHC.Types.[] @ GHC.Types.Char
+                      : x xs1
+                      -> Data.OldList.intercalate_$spoly_go
+                           @ GHC.Types.Char
+                           x
+                           (Data.OldList.prependToAll
+                              @ [GHC.Types.Char]
+                              Lib.$fPrintResponse[]1
+                              xs1) })) -}
+26724e92af4ced1703444a98bb5de4f9
+  $w$cresp1 :: [UseHaskellAPI.Message] -> GHC.Base.String
+  {- Arity: 1, Strictness: <S,1*U>, Inline: [0],
+     Unfolding: (\ (w :: [UseHaskellAPI.Message]) ->
+                 case w of wild {
+                   [] -> Lib.$fPrintResponse[]2
+                   : x ds1
+                   -> case ds1 of wild1 {
+                        []
+                        -> GHC.CString.unpackAppendCString#
+                             "Response is a single message: "#
+                             (case x of wild2 { UseHaskellAPI.Message ds2 ds3 -> ds3 })
+                        : ipv ipv1
+                        -> GHC.CString.unpackAppendCString#
+                             "Response is an array with messages: "#
+                             (case GHC.Base.map
+                                     @ UseHaskellAPI.Message
+                                     @ [GHC.Types.Char]
+                                     UseHaskellAPI.message
+                                     wild of wild2 {
+                                [] -> GHC.Types.[] @ GHC.Types.Char
+                                : x1 xs1
+                                -> Data.OldList.intercalate_$spoly_go
+                                     @ GHC.Types.Char
+                                     x1
+                                     (Data.OldList.prependToAll
+                                        @ [GHC.Types.Char]
+                                        Lib.$fPrintResponse[]1
+                                        xs1) }) } }) -}
+a5d0d872cc74ba004dff38a868f7765b
+  class PrintResponse a where
+    resp :: GHC.Show.Show a => a -> GHC.Base.String
+    {-# MINIMAL resp #-}
+abf9737d9a49bbe3b561aa74e029eafc
+  someFunc :: GHC.Types.IO ()
+  {- Arity: 1, Strictness: <S,U>,
+     Unfolding: InlineRule (0, True, True)
+                Lib.someFunc1 `cast` (Sym (GHC.Types.N:IO[0] <()>_R)) -}
+d7c613406a25ba0d85ce146ea0b8770d
+  someFunc1 ::
+    GHC.Prim.State# GHC.Prim.RealWorld
+    -> (# GHC.Prim.State# GHC.Prim.RealWorld, () #)
+  {- Arity: 1, Strictness: <S,U> -}
+instance Lib.PrintResponse [GHC.Types.Bool]
+  = Lib.$fPrintResponseBool
+instance Lib.PrintResponse [UseHaskellAPI.ResponseData]
+  = Lib.$fPrintResponseResponseData
+instance Lib.PrintResponse [[]] = Lib.$fPrintResponse[]
+instance Lib.PrintResponse [[]] = Lib.$fPrintResponse[]0
+vectorised variables:
+vectorised tycons:
+vectorised reused tycons:
+parallel variables:
+parallel tycons:
+trusted: none
+require own pkg trusted: False
+
