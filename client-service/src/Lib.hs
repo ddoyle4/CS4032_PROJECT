@@ -72,6 +72,9 @@ instance PrintResponse Bool where
   resp True =  "Response is a boolean : Totally!"
   resp False = "Response is a boolean : Like No Way!"
 
+instance PrintResponse AuthResponse where
+  resp ar@(AuthResponse m e) = m ++ ":\n" ++ e
+
 -- | Command line option handlers, one for each command
 -- These are called from the options parsing and do the actuall work of the program.
 

@@ -257,7 +257,7 @@ server = loadEnvironmentVariable
       withMongoDbConnection $ upsert (select ["dbusername" =: n] "users") $ toBSON dbUser
       return True  -- this is a simple debug method - no need for error checking
 
-    authUser :: User -> Handler Bool
+    authUser :: User -> Handler AuthResponse
     authUser u@(User n p) = liftIO $ do
       daveusers <- withMongoDbConnection $ do
                       docs <- find (select ["dbusername" =: n] "users") >>= drainCursor
@@ -267,9 +267,14 @@ server = loadEnvironmentVariable
         1 -> do
           let validDBUser = head daveusers
           if (dbencusername validDBUser) == p
-          then return True
-          else return False
-        _ -> return False
+          then do
+            noticeLog $ (dbencusername validDBUser) ++ " has successfully authenticated"
+            let rt = ReceiverToken key1Seed "metadata"
+            let st = SenderToken key1Seed (encryptString (show rt) key2Seed)
+            let resp = AuthResponse "SUCCESS" (encryptString (show st) (dbpassword validDBUser))
+            return resp
+          else return (AuthResponse "FAIL" "NOTHING")
+        _ -> return (AuthResponse "FAIL" "NOTHING")
           
 
 printDBUsers :: [DBUser] -> IO ()
