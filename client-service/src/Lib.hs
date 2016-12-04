@@ -98,6 +98,9 @@ doPerformRestCall s  =  doCall $ performRestCall s
 doDebugSaveUser :: String -> String -> Maybe String -> Maybe String -> IO ()
 doDebugSaveUser n p = doCall $ debugSaveUser $ User n p
 
+doAuthUser :: String -> String -> Maybe String -> Maybe String -> IO ()
+doAuthUser u p = doCall $ authUser $ User u (encryptString u p)
+
 -- | The options handling
 
 -- First we invoke the options on the entry point.
@@ -151,7 +154,13 @@ opts = do
                                            <$> argument str (metavar "Username")
                                            <*> argument str (metavar "Userpassword")
                                            <*> serverIpOption
-                                           <*> serverPortOption) "Save a user in the authentification database (debug method).") ))
+                                           <*> serverPortOption) "Save a user in the authentification database (debug method).") 
+                       <> command "auth-user"
+                                   (withInfo ( doAuthUser
+                                           <$> argument str (metavar "Username")
+                                           <*> argument str (metavar "Userpassword")
+                                           <*> serverIpOption
+                                           <*> serverPortOption) "Requesting authorisation for the current username and password.") ))
              (  fullDesc
              <> progDesc (progName ++ " is a simple test client for the client service." ++
                           " Try " ++ whiteCode ++ progName ++ " --help " ++ resetCode ++ " for more information. To " ++

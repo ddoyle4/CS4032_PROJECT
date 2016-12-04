@@ -76,6 +76,7 @@ server = loadEnvironmentVariable
     :<|> searchMessage
     :<|> performRESTCall
     :<|> debugSaveUser
+		:<|> authUser
 
   where
     -- | where is just a way of ensuring that the following functions are scoped to the server function. Each function
@@ -252,21 +253,31 @@ server = loadEnvironmentVariable
 
     debugSaveUser :: User -> Handler Bool
     debugSaveUser u@(User n p) = liftIO $ do 
-      withMongoDbConnection $ upsert (select ["name" =: n] "users") $ toBSON u
+      let dbUser = DBUser n p (encryptString n p)
+      withMongoDbConnection $ upsert (select ["dbusername" =: n] "users") $ toBSON dbUser
       return True  -- this is a simple debug method - no need for error checking
 
-{-
-    storeMessage msg@(Message key _) = liftIO $ do
-      warnLog $ "Storing message under key " ++ key ++ "."
+    authUser :: User -> Handler Bool
+    authUser u@(User n p) = liftIO $ do
+      daveusers <- withMongoDbConnection $ do
+                      docs <- find (select ["dbusername" =: n] "users") >>= drainCursor
+                      return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe DBUser) docs
 
-      -- upsert creates a new record if the identified record does not exist, or if
-      -- it does exist, it updates the record with the passed document content
-      -- As you can see, this takes a single line of code
-      withMongoDbConnection $ upsert (select ["name" =: key] "MESSAGE_RECORD") $ toBSON msg
+      case (length daveusers) of --ensure only one entry for that username
+        1 -> do
+          let validDBUser = head daveusers
+          if (dbencusername validDBUser) == p
+          then return True
+          else return False
+        _ -> return False
+          
 
-      return True  -- as this is a simple demo I'm not checking anything
--}
+printDBUsers :: [DBUser] -> IO ()
+printDBUsers (x:xs) = do
+  noticeLog $ "IN ERE DAVE: " ++ (dbusername x)
+  printDBUsers xs
 
+printDBUsers [] = putStrLn "IN ERE DAVE: done"
 
 -- | error stuff
 custom404Error msg = err404 { errBody = msg }
