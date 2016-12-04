@@ -271,10 +271,11 @@ server = loadEnvironmentVariable
             noticeLog $ (dbencusername validDBUser) ++ " has successfully authenticated"
             let rt = ReceiverToken key1Seed "metadata"
             let st = SenderToken key1Seed (encryptString (show rt) key2Seed)
-            let resp = AuthResponse "SUCCESS" (encryptString (show st) (dbpassword validDBUser))
+            let resp = AuthResponse "SUCCESS" (dbencusername validDBUser) (encryptString (show st) (dbpassword validDBUser))
             return resp
-          else return (AuthResponse "FAIL" "NOTHING")
-        _ -> return (AuthResponse "FAIL" "NOTHING")
+          else return (AuthResponse "FAIL" (dbencusername validDBUser) "NOTHING")
+
+        _ -> return (AuthResponse "FAIL" (n) "NOTHING")
           
 
 printDBUsers :: [DBUser] -> IO ()

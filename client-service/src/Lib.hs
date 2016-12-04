@@ -19,7 +19,9 @@ import qualified Servant.Client                     as SC
 import           System.Console.ANSI
 import           System.Environment
 import           FileSystemClientAPI
+import           System.IO.Unsafe
 import           FileSystemAuthServerAPI
+import           Control.Monad.IO.Class
 
 -- The code inside $( ) gets run at compile time. The functions run extract data from project files, both .git files and
 -- the .cabal file.
@@ -73,7 +75,31 @@ instance PrintResponse Bool where
   resp False = "Response is a boolean : Like No Way!"
 
 instance PrintResponse AuthResponse where
-  resp ar@(AuthResponse m e) = m ++ ":\n" ++ e
+  resp ar@(AuthResponse s u e) = do
+    let d = saveAuthToken ar
+    s ++ ":\n" ++ e
+
+
+saveAuthToken :: AuthResponse -> ()
+saveAuthToken ar@(AuthResponse s u e) = do
+  let strSenderToken = decryptString (getEnvVar "creds_" ++ u) e
+  let (SenderToken keySeed recvToken) = read strSenderToken :: SenderToken
+  let keySave = saveEnvVar "/home/david/temp/key1seed.txt" keySeed
+  saveEnvVar "/home/david/temp/token.txt" recvToken
+
+
+-- Sets an environment variable - only using unsafePerformIO as it is obviously free of side effects
+-- and independent of it's environment
+saveEnvVar :: String -> String -> ()
+saveEnvVar name value = do
+  unsafePerformIO $ writeFile name value
+
+-- Returns an environment variable - only using unsafePerformIO as it is obviously free of side effects
+-- and independent of it's environment
+getEnvVar :: String -> String
+getEnvVar name = do
+  unsafePerformIO $ readFile name
+
 
 -- | Command line option handlers, one for each command
 -- These are called from the options parsing and do the actuall work of the program.
@@ -102,7 +128,9 @@ doDebugSaveUser :: String -> String -> Maybe String -> Maybe String -> IO ()
 doDebugSaveUser n p = doCall $ debugSaveUser $ User n p
 
 doAuthUser :: String -> String -> Maybe String -> Maybe String -> IO ()
-doAuthUser u p = doCall $ authUser $ User u (encryptString u p)
+doAuthUser u p = do
+  let saveRes = saveEnvVar ("creds_" ++ u) p
+  doCall $ authUser $ User u (encryptString u p)
 
 -- | The options handling
 
