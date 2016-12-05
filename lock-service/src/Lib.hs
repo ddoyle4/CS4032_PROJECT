@@ -75,15 +75,45 @@ server =  lockFile
 
   where
     lockFile :: LockFileReq -> Handler Bool
-    lockFile lr = liftIO $ do
-      noticeLog $ "locking file"
-      return True
-
+    lockFile lr@(LockFileReq path) = liftIO $ do
+      noticeLog $ "Attempting to lock file"
+      lockSuccess <- performLockOnFile path
+      return lockSuccess
 
     unlockFile :: UnlockFileReq -> Handler Bool
-    unlockFile ulf = liftIO $ do
+    unlockFile ulf@(UnlockFileReq unlockVirtPath) = liftIO $ do
       noticeLog $ "unlocking file"
+      --this is a forceful unlock and as such will always be successful
+      performUnlockOnFile unlockVirtPath
       return True
+
+performUnlockOnFile :: String -> IO ()
+performUnlockOnFile virtPath = do
+  updateLockOnFile (FileLock virtPath False)
+  
+
+performLockOnFile :: String -> IO Bool
+performLockOnFile virtPath = do
+  fileIsLocked <- isFileLocked virtPath 
+  if fileIsLocked
+  then return False
+  else do
+    updateLockOnFile (FileLock virtPath True)
+    return True
+
+isFileLocked :: String -> IO Bool
+isFileLocked virtPath = do
+  locks <- withMongoDbConnection $ do
+    ls <- find (select ["virtLockPath" =: virtPath] "locks") >>= drainCursor
+    return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileLock) ls
+
+  case (length locks) of
+    1 -> return (virtPathLocked (head locks))
+    _ -> return False
+
+updateLockOnFile :: FileLock -> IO ()
+updateLockOnFile newLock@(FileLock virtPath _) = do
+  withMongoDbConnection $ upsert (select ["virtLockPath" =: virtPath] "locks") $ toBSON newLock
 
 -- | error stuff
 custom404Error msg = err404 { errBody = msg }
