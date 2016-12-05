@@ -53,6 +53,7 @@ readConnectionInfo :: FileSystemServer -> IO ConnectionInformation
 readConnectionInfo fss = do
   etcDirectory <- etcDir
   rawData <- readFile (etcDirectory ++ (etcfile fss))
+  putStrLn $ "filepath: " ++ (etcDirectory ++ (etcfile fss))
   let ls = splitOn "\n" rawData
   return $ ConnectionInformation (ls !! 0) (ls !! 1)
 
@@ -100,8 +101,9 @@ helloWorld = liftIO $ do
 processArgs :: [String] -> IO ()
 processArgs (x:xs) = liftIO $ do
   case x of
-    "hello" -> helloWorld
-    "auth"  -> authenticate xs 
+    "hello" 					-> helloWorld
+    "clean-etc"				-> removeETCDir
+    "auth"  					-> authenticate xs 
 
 processArgs [] = liftIO $ do
   putStrLn "You didn't provide any args"
@@ -110,8 +112,13 @@ processArgs [] = liftIO $ do
 etcDir :: IO String
 etcDir = do
   h <- getHomeDirectory 
-  return (h ++ etcDirname)
+  return (h ++ etcDirname ++ "/")
 
+--used to reset all of the ETC files
+removeETCDir :: IO ()
+removeETCDir = do
+	d <- etcDir
+	removeDirectoryRecursive d
 
 ensureHomeDir :: IO ()
 ensureHomeDir = do
