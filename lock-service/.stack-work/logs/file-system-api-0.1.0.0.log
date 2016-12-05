@@ -1,9 +1,0 @@
-Configuring file-system-api-0.1.0.0...
-Preprocessing library file-system-api-0.1.0.0...
-[1 of 4] Compiling FileSystemLockServerAPI ( src/FileSystemLockServerAPI.hs, .stack-work/dist/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/Cabal-1.24.0.0/build/FileSystemLockServerAPI.o )
-[2 of 4] Compiling FileSystemAuthServerAPI ( src/FileSystemAuthServerAPI.hs, .stack-work/dist/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/Cabal-1.24.0.0/build/FileSystemAuthServerAPI.o )
-[3 of 4] Compiling FileSystemClientAPI ( src/FileSystemClientAPI.hs, .stack-work/dist/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/Cabal-1.24.0.0/build/FileSystemClientAPI.o )
-[4 of 4] Compiling Lib              ( src/Lib.hs, .stack-work/dist/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/Cabal-1.24.0.0/build/Lib.o )
-Installing library in
-/home/david/CS4032_PROJECT/lock-service/.stack-work/install/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/lts-7.10/8.0.1/lib/x86_64-linux-ghc-8.0.1/file-system-api-0.1.0.0-GjWdoIlqs1cE9wmZtJApaj
-Registering file-system-api-0.1.0.0...
