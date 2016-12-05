@@ -128,9 +128,7 @@ doDebugSaveUser :: String -> String -> Maybe String -> Maybe String -> IO ()
 doDebugSaveUser n p = doCall $ debugSaveUser $ User n p
 
 doAuthUser :: String -> String -> Maybe String -> Maybe String -> IO ()
-doAuthUser u p = do
-  saveEnvVar ("creds_" ++ u) p
-  doCall $ authUser $ User u (encryptString u p)
+doAuthUser u p = doCall $ authUser $ User u (encryptString u p)
 
 -- | The options handling
 

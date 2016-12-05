@@ -1,8 +1,10 @@
 auth-service/.stack-work
-client/.stack-work
-client/*.swp
+my-client/.stack-work
+my-client/*.swp
 client-service/.stack-work
 authentification-service/.stack-work
 old-verisions/auth-service/.stack-work/
 old-verisions/client/.stack-work/
 lock-service/.stack-work
+file-service/.stack-work
+
