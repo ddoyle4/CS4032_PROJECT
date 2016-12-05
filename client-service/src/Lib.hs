@@ -76,29 +76,29 @@ instance PrintResponse Bool where
 
 instance PrintResponse AuthResponse where
   resp ar@(AuthResponse s u e) = do
-    let d = saveAuthToken ar
+    --let d = saveAuthToken ar
     s ++ ":\n" ++ e
 
-
+{-
 saveAuthToken :: AuthResponse -> ()
 saveAuthToken ar@(AuthResponse s u e) = do
   let strSenderToken = decryptString (getEnvVar "creds_" ++ u) e
   let (SenderToken keySeed recvToken) = read strSenderToken :: SenderToken
   let keySave = saveEnvVar "/home/david/temp/key1seed.txt" keySeed
   saveEnvVar "/home/david/temp/token.txt" recvToken
-
+-}
 
 -- Sets an environment variable - only using unsafePerformIO as it is obviously free of side effects
 -- and independent of it's environment
-saveEnvVar :: String -> String -> ()
+saveEnvVar :: String -> String -> IO ()
 saveEnvVar name value = do
-  unsafePerformIO $ writeFile name value
+  writeFile name value
 
 -- Returns an environment variable - only using unsafePerformIO as it is obviously free of side effects
 -- and independent of it's environment
-getEnvVar :: String -> String
-getEnvVar name = do
-  unsafePerformIO $ readFile name
+--getEnvVar :: String -> String
+--getEnvVar name = do
+  --readFile name
 
 
 -- | Command line option handlers, one for each command
@@ -129,7 +129,7 @@ doDebugSaveUser n p = doCall $ debugSaveUser $ User n p
 
 doAuthUser :: String -> String -> Maybe String -> Maybe String -> IO ()
 doAuthUser u p = do
-  let saveRes = saveEnvVar ("creds_" ++ u) p
+  saveEnvVar ("creds_" ++ u) p
   doCall $ authUser $ User u (encryptString u p)
 
 -- | The options handling
