@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Client where
 
 
@@ -10,7 +12,10 @@ import FileSystemEncryption hiding (Lib)
 import System.IO.Streams (InputStream, OutputStream, stdout)
 import qualified System.IO.Streams as Streams
 import qualified Data.ByteString as S
-import Network.HTTP.Client
+import           Data.Aeson
+import qualified Data.ByteString.Char8 as S8
+import qualified Data.Yaml             as Yaml
+import           Network.HTTP.Simple
 
 etcDirname :: String
 etcDirname = "/.haskell_client"
@@ -21,15 +26,25 @@ data FileSystemServer = AuthServer | FileServer
 
 
 -- GET / POST request methods
-sendPostRes = do
-  manager <- newManager defaultManagerSettings
 
-  request <- parseRequest "http://httpbin.org/post"
-  response <- httpLbs request manager
+data Person = Person String Int
+instance ToJSON Person where
+    toJSON (Person name age) = object
+        [ "name" .= name
+        , "age"  .= age
+        ]
 
-  --putStrLn $ "The status code was: " ++ (show $ statusCode $ responseStatus response)
-  print $ responseBody response
+people :: [Person]
+people = [Person "Alice" 30, Person "Bob" 35, Person "Charlie" 40]
 
+simplePOST = do
+    let request = setRequestBodyJSON people $ "POST https://httpbin.org/post"
+    response <- httpJSON request
+
+    putStrLn $ "The status code was: " ++
+               show (getResponseStatusCode response)
+    print $ getResponseHeader "Content-Type" response
+    S8.putStrLn $ Yaml.encode (getResponseBody response :: Value)
 
 -- Connection Information Data Types & Methods
 -- These help with storing / retrieving locations of servers
@@ -89,7 +104,6 @@ authenticate :: [String] -> IO ()
 authenticate params = do
   cxnInfo <- getConnectionInfo AuthServer
   putStrLn $ show cxnInfo
-  sendPostRes
   putStrLn "done"
   return ()
 
