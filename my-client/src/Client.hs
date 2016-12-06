@@ -8,7 +8,6 @@ import Control.Monad.IO.Class
 import System.Directory
 import Control.Monad
 import Data.List.Split
-import FileSystemEncryption hiding (Lib)
 import System.IO.Streams (InputStream, OutputStream, stdout)
 import qualified System.IO.Streams as Streams
 import qualified Data.ByteString as S
@@ -16,6 +15,7 @@ import           Data.Aeson
 import qualified Data.ByteString.Char8 as S8
 import qualified Data.Yaml             as Yaml
 import           Network.HTTP.Simple
+import FileSystemAuthServerAPI hiding (Lib)
 
 etcDirname :: String
 etcDirname = "/.haskell_client"
@@ -27,6 +27,15 @@ data FileSystemServer = AuthServer | FileServer
 
 -- GET / POST request methods
 
+performAuthUser :: User -> ConnectionInformation -> IO ()
+performAuthUser user info = do
+  let initReq = parseRequest_ "http://" ++ "test" ++ "/path"
+  let request = setRequestBodyJSON user $ "POST http://localhost:8080/authUser"
+  response <- httpJSON request
+  S8.putStrLn $ Yaml.encode (getResponseBody response :: Value)
+
+
+{-
 data Person = Person String Int
 instance ToJSON Person where
     toJSON (Person name age) = object
@@ -45,6 +54,7 @@ simplePOST = do
                show (getResponseStatusCode response)
     print $ getResponseHeader "Content-Type" response
     S8.putStrLn $ Yaml.encode (getResponseBody response :: Value)
+-}
 
 -- Connection Information Data Types & Methods
 -- These help with storing / retrieving locations of servers
@@ -104,6 +114,7 @@ authenticate :: [String] -> IO ()
 authenticate params = do
   cxnInfo <- getConnectionInfo AuthServer
   putStrLn $ show cxnInfo
+  performAuthUser (User "dave" (encryptString "dave" "password")) cxnInfo
   putStrLn "done"
   return ()
 
