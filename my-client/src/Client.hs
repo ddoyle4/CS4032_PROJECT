@@ -29,32 +29,22 @@ data FileSystemServer = AuthServer | FileServer
 
 performAuthUser :: User -> ConnectionInformation -> IO ()
 performAuthUser user info = do
-  let initReq = parseRequest_ "http://" ++ "test" ++ "/path"
-  let request = setRequestBodyJSON user $ "POST http://localhost:8080/authUser"
+  let str = "POST http://" ++ (hostAddr info) ++  ":" ++ (hostPort info) ++ "/authUser"
+  let initReq = parseRequest_ str
+  let request = setRequestBodyJSON user $ initReq
+  response <- httpJSON request
+  let ret = (getResponseBody response :: AuthResponse)
+  return ()
+
+performAddUser :: User -> ConnectionInformation -> IO ()
+performAddUser user info = do
+  let str = "POST http://" ++ (hostAddr info) ++  ":" ++ (hostPort info) ++ "/debugSaveUser"
+  initReq <- parseRequest str
+  let request = setRequestBodyJSON user $ initReq
   response <- httpJSON request
   S8.putStrLn $ Yaml.encode (getResponseBody response :: Value)
 
 
-{-
-data Person = Person String Int
-instance ToJSON Person where
-    toJSON (Person name age) = object
-        [ "name" .= name
-        , "age"  .= age
-        ]
-
-people :: [Person]
-people = [Person "Alice" 30, Person "Bob" 35, Person "Charlie" 40]
-
-simplePOST = do
-    let request = setRequestBodyJSON people $ "POST https://httpbin.org/post"
-    response <- httpJSON request
-
-    putStrLn $ "The status code was: " ++
-               show (getResponseStatusCode response)
-    print $ getResponseHeader "Content-Type" response
-    S8.putStrLn $ Yaml.encode (getResponseBody response :: Value)
--}
 
 -- Connection Information Data Types & Methods
 -- These help with storing / retrieving locations of servers
@@ -78,7 +68,7 @@ readConnectionInfo :: FileSystemServer -> IO ConnectionInformation
 readConnectionInfo fss = do
   etcDirectory <- etcDir
   rawData <- readFile (etcDirectory ++ (etcfile fss))
-  putStrLn $ "filepath: " ++ (etcDirectory ++ (etcfile fss))
+  --putStrLn $ "filepath: " ++ (etcDirectory ++ (etcfile fss))
   let ls = splitOn "\n" rawData
   return $ ConnectionInformation (ls !! 0) (ls !! 1)
 
@@ -110,13 +100,26 @@ getConnectionInfo fss = do
     return cnxnInfo
 
 -- Processing of Arguements - where stuff actually gets done
+-- User Authentication
 authenticate :: [String] -> IO ()
 authenticate params = do
   cxnInfo <- getConnectionInfo AuthServer
-  putStrLn $ show cxnInfo
+  --putStrLn $ show cxnInfo
   performAuthUser (User "dave" (encryptString "dave" "password")) cxnInfo
   putStrLn "done"
   return ()
+
+-- Add a User to the database off the authentication server
+addUser :: [String] -> IO ()
+addUser params = do
+  cnxnInfo <- getConnectionInfo AuthServer
+  let name = (params !! 0)
+  let pass = (params !! 1)
+  performAddUser (User name pass) cnxnInfo
+  putStrLn $ "Added " ++ name ++ ":" ++ pass
+  return ()
+
+
 
 -- be rude not to
 helloWorld :: IO ()
@@ -129,6 +132,7 @@ processArgs (x:xs) = liftIO $ do
     "hello" 					-> helloWorld
     "clean-etc"				-> removeETCDir
     "auth"  					-> authenticate xs 
+    "addUser"         -> addUser xs
 
 processArgs [] = liftIO $ do
   putStrLn "You didn't provide any args"
