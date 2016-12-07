@@ -92,10 +92,21 @@ server =  writeToFile
         _ -> do   --error
           errorLog $ "more than 1 file found for " ++ name
           return $ WriteFileResp False "-1"
-    
+
     readFromFile :: ReadFileReq -> Handler ReadFileResp
-    readFromFile rfr = do
-      return $ ReadFileResp True "test" "test"
+    readFromFile rfr@(ReadFileReq token name) = liftIO $ do
+      files <- searchFiles name
+      case (length files) of
+        1 -> do
+          let file = head files
+          let encFileData = encryptString (fileData file) (getSeedFromToken rfr)
+          return $ ReadFileResp True "ALL G" encFileData (fileVersion file)
+        0 -> do
+          return $ ReadFileResp False ("No record for " ++ name) "NOTHING" "-1"
+
+        _ -> do
+          errorLog $ "Search for " ++ name ++ " yielded " ++ (show (length files)) ++ " results, expected 1 or 0"
+          return $ ReadFileResp False "FUBAR - check file server logs" "Nothing" "-1" 
 
 -- store or update a file
 overwriteFile :: DBFile -> IO ()
@@ -105,9 +116,10 @@ overwriteFile file@(DBFile name _ _) = do
 -- return all files matching "fileName"
 searchFiles :: String -> IO [DBFile]
 searchFiles name = do
-  withMongoDbConnection $ do
+  files <- withMongoDbConnection $ do
     docs <- find (select ["fileName" =: name] "files") >>= drainCursor
     return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe DBFile) docs
+  return files
 
 getIncrementedFileVersion :: DBFile -> String 
 getIncrementedFileVersion (DBFile _ version _) = show ((read version :: Int) + 1)
@@ -117,6 +129,9 @@ extractFileData wfr@(WriteFileReq token name encData) = decryptString encData (r
   
 getReceiverToken :: WriteFileReq -> ReceiverToken
 getReceiverToken (WriteFileReq token _ _) = read (decryptString token key2Seed) :: ReceiverToken
+
+getSeedFromToken :: ReadFileReq -> String
+getSeedFromToken (ReadFileReq token _) = recKey1Seed (read (decryptString token key2Seed) :: ReceiverToken)
 
 -- | error stuff
 custom404Error msg = err404 { errBody = msg }

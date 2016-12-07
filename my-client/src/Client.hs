@@ -30,6 +30,14 @@ seedFilename = "encyption_key_seed"
 data FileSystemServer = AuthServer | FileServer 
 
 -- GET / POST request methods
+performRetrieveFile :: ReadFileReq -> ConnectionInformation -> IO ReadFileResp
+performRetrieveFile rfr info = do
+  let str = "POST http://" ++ (hostAddr info) ++  ":" ++ (hostPort info) ++ "/readFromFile"
+  let initReq = parseRequest_ str
+  let request = setRequestBodyJSON rfr $ initReq
+  response <- httpJSON request
+  let ret = (getResponseBody response :: ReadFileResp)
+  return ret
 
 performStoreFile :: WriteFileReq -> ConnectionInformation -> IO WriteFileResp
 performStoreFile wfreq info = do
@@ -191,6 +199,17 @@ storeFile params = do
   putStrLn $ show resp
   return ()
   
+retrieveFile :: [String] -> IO ()
+retrieveFile params = do
+  let path = (params !! 0)
+  token <- getAuthToken
+  key1 <- getEncryptionKeySeed
+  cnxnInfo <- getConnectionInfo FileServer
+  let req = ReadFileReq token path
+  resp <- performRetrieveFile req cnxnInfo
+  writeFile path $ decryptString (encryptedResult resp) key1
+  putStrLn $ show resp
+  return ()
 
 -- be rude not to
 helloWorld :: IO ()
@@ -205,6 +224,7 @@ processArgs (x:xs) = liftIO $ do
     "auth"  					-> authenticate xs 
     "add-user"        -> addUser xs
     "store-file"      -> storeFile xs
+    "retrieve-file"   -> retrieveFile xs
 
 processArgs [] = liftIO $ do
   putStrLn "You didn't provide any args"
