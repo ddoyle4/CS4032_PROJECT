@@ -16,25 +16,38 @@ import qualified Data.ByteString.Char8 as S8
 import qualified Data.Yaml             as Yaml
 import           Network.HTTP.Simple
 import FileSystemAuthServerAPI hiding (Lib)
+import FileSystemFileServerAPI hiding (Lib)
 
 etcDirname :: String
 etcDirname = "/.haskell_client"
 
+tokenFilename :: String
+tokenFilename = "token"
+
+seedFilename :: String
+seedFilename = "encyption_key_seed"
+
 data FileSystemServer = AuthServer | FileServer 
-
-
-
 
 -- GET / POST request methods
 
-performAuthUser :: User -> ConnectionInformation -> IO ()
+performStoreFile :: WriteFileReq -> ConnectionInformation -> IO WriteFileResp
+performStoreFile wfreq info = do
+  let str = "POST http://" ++ (hostAddr info) ++  ":" ++ (hostPort info) ++ "/writeToFile"
+  let initReq = parseRequest_ str
+  let request = setRequestBodyJSON wfreq $ initReq
+  response <- httpJSON request
+  let ret = (getResponseBody response :: WriteFileResp)
+  return ret
+
+performAuthUser :: User -> ConnectionInformation -> IO AuthResponse
 performAuthUser user info = do
   let str = "POST http://" ++ (hostAddr info) ++  ":" ++ (hostPort info) ++ "/authUser"
   let initReq = parseRequest_ str
   let request = setRequestBodyJSON user $ initReq
   response <- httpJSON request
   let ret = (getResponseBody response :: AuthResponse)
-  return ()
+  return ret
 
 performAddUser :: User -> ConnectionInformation -> IO ()
 performAddUser user info = do
@@ -99,44 +112,27 @@ getConnectionInfo fss = do
     cnxnInfo <- writeConnectionInfo fss
     return cnxnInfo
 
--- Processing of Arguements - where stuff actually gets done
--- User Authentication
-authenticate :: [String] -> IO ()
-authenticate params = do
-  cxnInfo <- getConnectionInfo AuthServer
-  --putStrLn $ show cxnInfo
-  performAuthUser (User "dave" (encryptString "dave" "password")) cxnInfo
-  putStrLn "done"
-  return ()
+saveAuthToken :: String -> IO ()
+saveAuthToken token = do
+  etcDirectory <- etcDir
+  writeFile (etcDirectory ++ tokenFilename) token
 
--- Add a User to the database off the authentication server
-addUser :: [String] -> IO ()
-addUser params = do
-  cnxnInfo <- getConnectionInfo AuthServer
-  let name = (params !! 0)
-  let pass = (params !! 1)
-  performAddUser (User name pass) cnxnInfo
-  putStrLn $ "Added " ++ name ++ ":" ++ pass
-  return ()
+getAuthToken :: IO String
+getAuthToken = do
+  etcDirectory <- etcDir
+  contents <- readFile (etcDirectory ++ tokenFilename)
+  return contents
+  
+saveEncryptionKeySeed :: String -> IO ()
+saveEncryptionKeySeed seed = do
+  etcDirectory <- etcDir
+  writeFile (etcDirectory ++ seedFilename) seed
 
-
-
--- be rude not to
-helloWorld :: IO ()
-helloWorld = liftIO $ do
-  putStrLn "Hello, world."
-
-processArgs :: [String] -> IO ()
-processArgs (x:xs) = liftIO $ do
-  case x of
-    "hello" 					-> helloWorld
-    "clean-etc"				-> removeETCDir
-    "auth"  					-> authenticate xs 
-    "addUser"         -> addUser xs
-
-processArgs [] = liftIO $ do
-  putStrLn "You didn't provide any args"
-
+getEncryptionKeySeed :: IO String
+getEncryptionKeySeed = do
+  etcDirectory <- etcDir
+  contents <- readFile (etcDirectory ++ seedFilename)
+  return contents
 
 etcDir :: IO String
 etcDir = do
@@ -156,6 +152,64 @@ ensureHomeDir = do
   when (not ex) (do 
     putStrLn ("Creating new haskell client directory:" ++ d)
     createDirectory d)
+
+-- Processing of Arguements - where stuff actually gets done
+-- User Authentication
+authenticate :: [String] -> IO ()
+authenticate params = do
+  let name = (params !! 0)
+  let pass = (params !! 1)
+  cxnInfo <- getConnectionInfo AuthServer
+  authResp <- performAuthUser (User name (encryptString name pass )) cxnInfo
+  let senToken = read (decryptString (encSenderToken authResp) pass) :: SenderToken
+  saveAuthToken $ encReceiverToken senToken
+  saveEncryptionKeySeed $ senKey1Seed senToken
+  putStrLn "done"
+  return ()
+
+-- Add a User to the database off the authentication server
+addUser :: [String] -> IO ()
+addUser params = do
+  cnxnInfo <- getConnectionInfo AuthServer
+  let name = (params !! 0)
+  let pass = (params !! 1)
+  performAddUser (User name pass) cnxnInfo
+  putStrLn $ "Added " ++ name ++ ":" ++ pass
+  return ()
+
+--TODODODODODODOD fix path filename stuff here - can't reference anything outside current dir atm
+--storing a file in the file system
+storeFile :: [String] -> IO ()
+storeFile params = do
+  let path = (params !! 0)
+  token <- getAuthToken
+  key1 <- getEncryptionKeySeed
+  cnxnInfo <- getConnectionInfo FileServer
+  fileData <- readFile path
+  let req = WriteFileReq token path (encryptString fileData key1)
+  resp <- performStoreFile req cnxnInfo
+  putStrLn $ show resp
+  return ()
+  
+
+-- be rude not to
+helloWorld :: IO ()
+helloWorld = liftIO $ do
+  putStrLn "Hello, world."
+
+processArgs :: [String] -> IO ()
+processArgs (x:xs) = liftIO $ do
+  case x of
+    "hello" 					-> helloWorld
+    "clean-etc"				-> removeETCDir
+    "auth"  					-> authenticate xs 
+    "add-user"        -> addUser xs
+    "store-file"      -> storeFile xs
+
+processArgs [] = liftIO $ do
+  putStrLn "You didn't provide any args"
+
+
 
 someFunc :: IO ()
 someFunc = do

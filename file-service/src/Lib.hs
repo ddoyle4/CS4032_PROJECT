@@ -46,7 +46,7 @@ import           System.Log.Handler.Simple
 import           System.Log.Handler.Syslog
 import           System.Log.Logger
 import           FileSystemFileServerAPI
-import           FileSystemEncryption
+import           FileSystemAuthServerAPI  hiding (API)
 
 startApp :: IO ()    -- set up wai logger for service to output apache style logging for rest calls
 startApp = withLogging $ \ aplogger -> do
@@ -54,7 +54,7 @@ startApp = withLogging $ \ aplogger -> do
 
   forkIO $ taskScheduler 5
 
-  let settings = setPort 8082 $ setLogger aplogger defaultSettings
+  let settings = setPort 8083 $ setLogger aplogger defaultSettings
   runSettings settings app
 
 taskScheduler :: Int -> IO ()
@@ -73,11 +73,50 @@ api = Proxy
 server :: Server API
 server =  writeToFile
           :<|> readFromFile
-
   where
     writeToFile :: WriteFileReq -> Handler WriteFileResp
     writeToFile wr@(WriteFileReq token name contents) = liftIO $ do
-            
+      files <- searchFiles name
+
+      case (length files) of
+        1 -> do   --updating existing file
+          let newVersion = (getIncrementedFileVersion (head files))
+          let updatedFile = DBFile name newVersion (extractFileData wr)
+          overwriteFile updatedFile
+          return $ WriteFileResp True newVersion
+
+        0 -> do
+          overwriteFile $ DBFile name "1" (extractFileData wr)
+          return $ WriteFileResp True "1"
+
+        _ -> do   --error
+          errorLog $ "more than 1 file found for " ++ name
+          return $ WriteFileResp False "-1"
+    
+    readFromFile :: ReadFileReq -> Handler ReadFileResp
+    readFromFile rfr = do
+      return $ ReadFileResp True "test" "test"
+
+-- store or update a file
+overwriteFile :: DBFile -> IO ()
+overwriteFile file@(DBFile name _ _) = do
+  withMongoDbConnection $ upsert (select ["fileName" =: name] "files") $ toBSON file
+  
+-- return all files matching "fileName"
+searchFiles :: String -> IO [DBFile]
+searchFiles name = do
+  withMongoDbConnection $ do
+    docs <- find (select ["fileName" =: name] "files") >>= drainCursor
+    return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe DBFile) docs
+
+getIncrementedFileVersion :: DBFile -> String 
+getIncrementedFileVersion (DBFile _ version _) = show ((read version :: Int) + 1)
+
+extractFileData :: WriteFileReq -> String
+extractFileData wfr@(WriteFileReq token name encData) = decryptString encData (recKey1Seed (getReceiverToken wfr))
+  
+getReceiverToken :: WriteFileReq -> ReceiverToken
+getReceiverToken (WriteFileReq token _ _) = read (decryptString token key2Seed) :: ReceiverToken
 
 -- | error stuff
 custom404Error msg = err404 { errBody = msg }
