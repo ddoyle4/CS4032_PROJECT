@@ -105,104 +105,75 @@ server =  resolveFile
           
           case primaryRecord of
             Just record   ->  do
-              cachePromote record
+              --cachePromote record
               return $ ResolutionResponse True record
 
             Nothing       -> do   --this is an ERROR state
               errorLog "This joker is trying to read a file that doesn't exist"
-              return $ ResolutionResponse False nullResolutionResponse
+              return $ nullResolutionResponse
 
         "write"   ->
           
           case primaryRecord of
             Just record   -> do
-              cacheInvalidate record
+              --cacheInvalidate record
               return $ ResolutionResponse True record 
 
-            Nothing       -> do
+            Nothing       -> do   -- add new primary record to fileRecords
               bestFS <- selectAppropriateFileServer
-              let newPrimaryRecord = FileRecord "PRIMARY" name "1"  bestFS
-              addPrimaryRecord newPrimaryRecord
-              return $ ResolutionResponse True newPrimaryRecord
+              let newRecord = FileRecord "PRIMARY" name "1"  bestFS
+              addRecord newRecord
+              return $ ResolutionResponse True newRecord
 
         _         -> do  --this is an ERROR state
           
           errorLog "This joker doesn't know whether he's reading or writing"
-          return $ ResolutionResponse False nullResolutionResponse
+          return $ nullResolutionResponse
         
-          
+    --used by the file servers to insert secondary records as they propogate
+    insertFileRecord :: FileRecord -> Handler Bool
+    insertFileRecord _ = return True
 
--- CALCULATE LOAD BY HOW MUCH POUNDING ITS GETTING AND HOW MUCH DATA ALREADY STORED ON EACH
--- THIS WILL AT LEAST ENCOURAGE A NICE SPREADING OF PRIMARY RECORDS OVER ALL AVAILABLE
--- FILE SERVERS 
 
--- return all files matching "fileName"
-searchFiles :: String -> IO [FileRecord]
-searchFiles name = do
+    insertServerRecord :: FileServerRecord -> Handler Bool
+    insertServerRecord fsr@(FileServerRecord host _ _ _) = liftIO $ do
+      withMongoDbConnection $ upsert (select ["fsHost" =: host] "fileServers") $ toBSON fsr
+      return True
+    
+
+addRecord :: FileRecord -> IO ()
+addRecord r@(FileRecord _ name _ _) = do
+  withMongoDbConnection $ upsert (select ["fileName" =: name] "fileRecord") $ toBSON r
+
+--Selects a file server for the new primary record based on the load currently (most recently)
+--on the server. This is currently based on smallest current size
+selectAppropriateFileServer :: IO FileServerRecord
+selectAppropriateFileServer = do
+  fileServers <- withMongoDbConnection $ do
+    docs <- find (select [] "fileServers") >>= drainCursor
+    return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileServerRecord) docs
+
+  return $ filterSmallestSize fileServers (head fileServers)
+
+filterSmallestSize :: [FileServerRecord] -> FileServerRecord -> FileServerRecord
+filterSmallestSize (x:xs) currentSmallest 
+  | (read (currentSize x) :: Int) > (read (currentSize currentSmallest) :: Int) = filterSmallestSize xs x
+  | otherwise = filterSmallestSize xs currentSmallest
+
+filterSmallestSize [] currentSmallest = currentSmallest
+  
+--attempts to return the primary record for the file
+getPrimaryRecord :: String -> IO (Maybe FileRecord)
+getPrimaryRecord name = do
   files <- withMongoDbConnection $ do
-    docs <- find (select ["fileName" =: name] "fileRecords") >>= drainCursor
+    let primaryIdentifier = "PRIMARY" :: String       --TODO MOVE THIS TO API
+    docs <- find (select ["fileName" =: name, "recordType" =: primaryIdentifier] "fileRecords") >>= drainCursor
     return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileRecord) docs
-  return files
 
-{-
-    writeToFile :: WriteFileReq -> Handler WriteFileResp
-    writeToFile wr@(WriteFileReq token name contents) = liftIO $ do
-      files <- searchFiles name
+  case (length files) of
+    0 -> return Nothing 
+    _ -> return (Just (head files))
 
-      case (length files) of
-        1 -> do   --updating existing file
-          let newVersion = (getIncrementedFileVersion (head files))
-          let updatedFile = DBFile name newVersion (extractFileData wr)
-          overwriteFile updatedFile
-          return $ WriteFileResp True newVersion
-
-        0 -> do
-          overwriteFile $ DBFile name "1" (extractFileData wr)
-          return $ WriteFileResp True "1"
-
-        _ -> do   --error
-          errorLog $ "more than 1 file found for " ++ name
-          return $ WriteFileResp False "-1"
-
-    readFromFile :: ReadFileReq -> Handler ReadFileResp
-    readFromFile rfr@(ReadFileReq token name) = liftIO $ do
-      files <- searchFiles name
-      case (length files) of
-        1 -> do
-          let file = head files
-          let encFileData = encryptString (fileData file) (getSeedFromToken rfr)
-          return $ ReadFileResp True "ALL G" encFileData (fileVersion file)
-        0 -> do
-          return $ ReadFileResp False ("No record for " ++ name) "NOTHING" "-1"
-
-        _ -> do
-          errorLog $ "Search for " ++ name ++ " yielded " ++ (show (length files)) ++ " results, expected 1 or 0"
-          return $ ReadFileResp False "FUBAR - check file server logs" "Nothing" "-1" 
-
-
-
-
-
-
-
--- store or update a file
-overwriteFile :: DBFile -> IO ()
-overwriteFile file@(DBFile name _ _) = do
-  withMongoDbConnection $ upsert (select ["fileName" =: name] "files") $ toBSON file
-  
-
-getIncrementedFileVersion :: DBFile -> String 
-getIncrementedFileVersion (DBFile _ version _) = show ((read version :: Int) + 1)
-
-extractFileData :: WriteFileReq -> String
-extractFileData wfr@(WriteFileReq token name encData) = decryptString encData (recKey1Seed (getReceiverToken wfr))
-  
-getReceiverToken :: WriteFileReq -> ReceiverToken
-getReceiverToken (WriteFileReq token _ _) = read (decryptString token key2Seed) :: ReceiverToken
-
-getSeedFromToken :: ReadFileReq -> String
-getSeedFromToken (ReadFileReq token _) = recKey1Seed (read (decryptString token key2Seed) :: ReceiverToken)
--}
 -- | error stuff
 custom404Error msg = err404 { errBody = msg }
 
