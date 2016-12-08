@@ -17,6 +17,7 @@ import qualified Data.Yaml             as Yaml
 import           Network.HTTP.Simple
 import FileSystemAuthServerAPI hiding (Lib)
 import FileSystemFileServerAPI hiding (Lib)
+import FileSystemDirectoryServerAPI hiding (Lib)
 
 etcDirname :: String
 etcDirname = "/.haskell_client"
@@ -27,9 +28,19 @@ tokenFilename = "token"
 seedFilename :: String
 seedFilename = "encyption_key_seed"
 
-data FileSystemServer = AuthServer | FileServer 
+data FileSystemServer = AuthServer | FileServer | DirectoryServer
+
 
 -- GET / POST request methods
+performAddFileServer :: FileServerRecord -> ConnectionInformation -> IO Bool
+performAddFileServer record info = do
+  let str = "POST http://" ++ (hostAddr info) ++  ":" ++ (hostPort info) ++ "/insertServerRecord"
+  let initReq = parseRequest_ str
+  let request = setRequestBodyJSON record $ initReq
+  response <- httpJSON request
+  let ret = (getResponseBody response :: Bool)
+  return ret
+
 performRetrieveFile :: ReadFileReq -> ConnectionInformation -> IO ReadFileResp
 performRetrieveFile rfr info = do
   let str = "POST http://" ++ (hostAddr info) ++  ":" ++ (hostPort info) ++ "/readFromFile"
@@ -72,6 +83,7 @@ performAddUser user info = do
 instance Show FileSystemServer where
   show FileServer = "The File Server"
   show AuthServer = "The Authentification Server"
+  show DirectoryServer = "The Directory Server"
 
 class ETCFile a where
   etcfile :: a -> String
@@ -79,6 +91,7 @@ class ETCFile a where
 instance ETCFile FileSystemServer where
   etcfile AuthServer = "auth_server_ci"
   etcfile FileServer = "file_server_ci"
+  etcfile DirectoryServer = "directory_server_ci"
 
 data ConnectionInformation = ConnectionInformation
   { hostAddr :: String
@@ -211,6 +224,16 @@ retrieveFile params = do
   putStrLn $ show resp
   return ()
 
+addFileServer :: [String] -> IO ()
+addFileServer params = do
+  let host = (params !! 0)
+  let port = (params !! 1)
+  cnxnInfo <- getConnectionInfo DirectoryServer
+  let record = FileServerRecord host port "0" "0"
+  resp <- performAddFileServer record cnxnInfo
+  putStrLn $ show resp
+  return ()  
+
 -- be rude not to
 helloWorld :: IO ()
 helloWorld = liftIO $ do
@@ -225,6 +248,8 @@ processArgs (x:xs) = liftIO $ do
     "add-user"        -> addUser xs
     "store-file"      -> storeFile xs
     "retrieve-file"   -> retrieveFile xs
+    "add-file-server" -> addFileServer xs
+
 
 processArgs [] = liftIO $ do
   putStrLn "You didn't provide any args"
