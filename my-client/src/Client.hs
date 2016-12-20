@@ -12,6 +12,7 @@ import System.IO.Streams (InputStream, OutputStream, stdout)
 import qualified System.IO.Streams as Streams
 import qualified Data.ByteString as S
 import           Data.Aeson
+import qualified Data.Aeson as Dave
 import qualified Data.ByteString.Char8 as S8
 import qualified Data.Yaml             as Yaml
 import           Network.HTTP.Simple
@@ -30,8 +31,25 @@ seedFilename = "encyption_key_seed"
 
 data FileSystemServer = AuthServer | FileServer | DirectoryServer
 
+--general :: (Dave.ToJSON a, Dave.FromJSON a) => a -> ConnectionInformation -> IO b
+general req info = do
+  let str = "POST http://" ++ (hostAddr info) ++  ":" ++ (hostPort info) ++ "/insertServerRecord"
+      initReq = parseRequest_ str
+      request = setRequestBodyJSON (Dave.toJSON req) $ initReq
+  response <- httpJSON request
+  let ret = (getResponseBody response :: b)
+  return ret
 
 -- GET / POST request methods
+resolveFile :: ResolutionRequest -> ConnectionInformation -> IO ResolutionResponse
+resolveFile req info = do
+  let str = "POST http://" ++ (hostAddr info) ++  ":" ++ (hostPort info) ++ "/insertServerRecord"
+  let initReq = parseRequest_ str
+  let request = setRequestBodyJSON req $ initReq
+  response <- httpJSON request
+  let ret = (getResponseBody response :: ResolutionResponse)
+  return ret
+
 performAddFileServer :: FileServerRecord -> ConnectionInformation -> IO Bool
 performAddFileServer record info = do
   let str = "POST http://" ++ (hostAddr info) ++  ":" ++ (hostPort info) ++ "/insertServerRecord"
@@ -212,16 +230,34 @@ storeFile params = do
   putStrLn $ show resp
   return ()
   
+
 retrieveFile :: [String] -> IO ()
 retrieveFile params = do
   let path = (params !! 0)
   token <- getAuthToken
+  cnxnInfo <- getConnectionInfo DirectoryServer
+  resResponse <- resolveFile (ResolutionRequest path "READ" token) cnxnInfo 
   key1 <- getEncryptionKeySeed
-  cnxnInfo <- getConnectionInfo FileServer
-  let req = ReadFileReq token path
-  resp <- performRetrieveFile req cnxnInfo
-  writeFile path $ decryptString (encryptedResult resp) key1
-  putStrLn $ show resp
+
+  case (cacheHit resResponse) of
+    True -> do 
+      putStrLn $ "Cache HIT!!! WUHOO!"
+      --writeFile path $ decryptString (encryptedResult resp) key1
+
+    False -> do
+      putStrLn $ "Cache MISS!!! Doh!" 
+      --let serverRecord = serverRecord (resolution resResponse)
+      --let fileServerInfo = ConnectionInfo (fsHost) (fsPort)
+      putStrLn "done"
+  fileServerInfo <- getConnectionInfo FileServer
+  let fileRequest = ReadFileReq token path
+
+
+  --resp <- performRetrieveFile req cnxnInfo
+
+
+  --writeFile path $ decryptString (encryptedResult resp) key1
+  --putStrLn $ show resp
   return ()
 
 addFileServer :: [String] -> IO ()
