@@ -46,6 +46,7 @@ import           System.Log.Handler.Simple
 import           System.Log.Handler.Syslog
 import           System.Log.Logger
 import           FileSystemDirectoryServerAPI
+import           FileSystemAuthServerAPI hiding (Lib, API)
 
 startApp :: IO ()    -- set up wai logger for service to output apache style logging for rest calls
 startApp = withLogging $ \ aplogger -> do
@@ -94,7 +95,7 @@ server =  resolveFile
     --
     -- Note - adding things to the cache simply adds an empty 
     resolveFile :: ResolutionRequest -> Handler ResolutionResponse
-    resolveFile rr@(ResolutionRequest name intention) = liftIO $ do
+    resolveFile rr@(ResolutionRequest name intention token) = liftIO $ do
       noticeLog $ "Resolving " ++ name
       -- search for the primary record for the current file
       primaryRecord <- getPrimaryRecord name
@@ -109,7 +110,12 @@ server =  resolveFile
               cacheHit <- cachePromote record
 
               case cacheHit of
-                Just cached   -> return $ ResolutionResponse True record True (cacheData cached)
+                Just cached   -> do
+
+                  let rToken = read (decryptString (cacheData cached) key2Seed) :: ReceiverToken 
+                  let encFile = encryptString (cacheData cached) (recKey1Seed rToken)
+                  return $ ResolutionResponse True record True encFile
+
                 Nothing       -> return $ ResolutionResponse True record False ""
 
             Nothing       -> do   --this is an ERROR state
