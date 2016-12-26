@@ -78,10 +78,11 @@ server =  resolveFile
           :<|> insertServerRecord
           :<|> insertFileRecord
   where
+    -- Resolve A File Location
     -- The logic here is as follows:
     --  -> The client intends to READ a file
     --    -> the file exists
-    --      -> send the FileRecord for the primary server to the client
+    --      -> if cache hit then send cached otherwise send the FileRecord for the primary server to the client
     --      -> add weight to that file in the cache (add to cache)
     --    -> the file doesn't exist
     --      -> return False
@@ -102,7 +103,7 @@ server =  resolveFile
 
       -- what does the client intend to do to this file?
       case intention of
-        "read"    -> do
+        "READ"    -> do
           
           case primaryRecord of
             Just record   ->  do
@@ -122,7 +123,7 @@ server =  resolveFile
               errorLog "This joker is trying to read a file that doesn't exist"
               return $ negativeResolutionResponse
 
-        "write"   ->
+        "WRITE"   ->
           
           case primaryRecord of
             Just record   -> do
@@ -149,8 +150,8 @@ server =  resolveFile
 
 
     insertServerRecord :: FileServerRecord -> Handler Bool
-    insertServerRecord fsr@(FileServerRecord host _ _ _) = liftIO $ do
-      withMongoDbConnection $ upsert (select ["fsHost" =: host] "fileServers") $ toBSON fsr
+    insertServerRecord fsr@(FileServerRecord host port _ _) = liftIO $ do
+      withMongoDbConnection $ upsert (select ["fsHost" =: host, "fsPort" =: port] "fileServers") $ toBSON fsr
       return True
 
 --TODO change all the dbs string names in withMongoDB calls to variables
@@ -199,7 +200,7 @@ incrementWeight w = show ((read w :: Int) + 1)
 
 addRecord :: FileRecord -> IO ()
 addRecord r@(FileRecord _ name _ _) = do
-  withMongoDbConnection $ upsert (select ["fileName" =: name] "fileRecord") $ toBSON r
+  withMongoDbConnection $ upsert (select ["fileRecordName" =: name] "fileRecord") $ toBSON r
 
 --Selects a file server for the new primary record based on the load currently (most recently)
 --on the server. This is currently based on smallest current size
@@ -224,7 +225,7 @@ getPrimaryRecord :: String -> IO (Maybe FileRecord)
 getPrimaryRecord name = do
   files <- withMongoDbConnection $ do
     let primaryIdentifier = "PRIMARY" :: String       --TODO MOVE THIS TO API
-    docs <- find (select ["fileName" =: name, "recordType" =: primaryIdentifier] "fileRecords") >>= drainCursor
+    docs <- find (select ["fileRecordName" =: name, "recordType" =: primaryIdentifier] "fileRecords") >>= drainCursor
     return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileRecord) docs
 
   case (length files) of

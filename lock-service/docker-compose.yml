@@ -16,4 +16,4 @@ use-haskell:
 database:
   image: mongo:3.0.2
   ports:
-    - "27018:27018"
+    - "27018:27017"

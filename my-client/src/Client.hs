@@ -19,6 +19,7 @@ import           Network.HTTP.Simple
 import FileSystemAuthServerAPI hiding (Lib)
 import FileSystemFileServerAPI hiding (Lib)
 import FileSystemDirectoryServerAPI hiding (Lib)
+import FileSystemLockServerAPI hiding (Lib)
 
 etcDirname :: String
 etcDirname = "/.haskell_client"
@@ -29,21 +30,31 @@ tokenFilename = "token"
 seedFilename :: String
 seedFilename = "encyption_key_seed"
 
-data FileSystemServer = AuthServer | FileServer | DirectoryServer
-
---general :: (Dave.ToJSON a, Dave.FromJSON a) => a -> ConnectionInformation -> IO b
-general req info = do
-  let str = "POST http://" ++ (hostAddr info) ++  ":" ++ (hostPort info) ++ "/insertServerRecord"
-      initReq = parseRequest_ str
-      request = setRequestBodyJSON (Dave.toJSON req) $ initReq
-  response <- httpJSON request
-  let ret = (getResponseBody response :: b)
-  return ret
+data FileSystemServer = AuthServer | FileServer | DirectoryServer | LockServer
 
 -- GET / POST request methods
+
+performLockFile :: LockFileReq -> ConnectionInformation -> IO Bool
+performLockFile req info = do
+  let str = "POST http://" ++ (hostAddr info) ++  ":" ++ (hostPort info) ++ "/lockFile"
+  let initReq = parseRequest_ str
+  let request = setRequestBodyJSON req $ initReq
+  response <- httpJSON request
+  let ret = (getResponseBody response :: Bool)
+  return ret
+
+performUnlockFile :: UnlockFileReq -> ConnectionInformation -> IO Bool
+performUnlockFile req info = do
+  let str = "POST http://" ++ (hostAddr info) ++  ":" ++ (hostPort info) ++ "/unlockFile"
+  let initReq = parseRequest_ str
+  let request = setRequestBodyJSON req $ initReq
+  response <- httpJSON request
+  let ret = (getResponseBody response :: Bool)
+  return ret
+
 resolveFile :: ResolutionRequest -> ConnectionInformation -> IO ResolutionResponse
 resolveFile req info = do
-  let str = "POST http://" ++ (hostAddr info) ++  ":" ++ (hostPort info) ++ "/insertServerRecord"
+  let str = "POST http://" ++ (hostAddr info) ++  ":" ++ (hostPort info) ++ "/resolveFile"
   let initReq = parseRequest_ str
   let request = setRequestBodyJSON req $ initReq
   response <- httpJSON request
@@ -102,6 +113,7 @@ instance Show FileSystemServer where
   show FileServer = "The File Server"
   show AuthServer = "The Authentification Server"
   show DirectoryServer = "The Directory Server"
+  show LockServer = "The Locking Server"
 
 class ETCFile a where
   etcfile :: a -> String
@@ -110,6 +122,7 @@ instance ETCFile FileSystemServer where
   etcfile AuthServer = "auth_server_ci"
   etcfile FileServer = "file_server_ci"
   etcfile DirectoryServer = "directory_server_ci"
+  etcfile LockServer = "lock_server_ci"
 
 data ConnectionInformation = ConnectionInformation
   { hostAddr :: String
@@ -193,6 +206,21 @@ ensureHomeDir = do
     createDirectory d)
 
 -- Processing of Arguements - where stuff actually gets done
+
+lockFile :: String -> IO Bool
+lockFile name = do
+  cnxnInfo <- getConnectionInfo LockServer
+  let req = LockFileReq name 
+  isLocked <- performLockFile req cnxnInfo
+  return isLocked
+
+unlockFile :: String -> IO Bool
+unlockFile name = do
+  cnxnInfo <- getConnectionInfo LockServer
+  let req = UnlockFileReq name 
+  isUnlocked <- performUnlockFile req cnxnInfo
+  return isUnlocked
+
 -- User Authentication
 authenticate :: [String] -> IO ()
 authenticate params = do
@@ -203,10 +231,10 @@ authenticate params = do
   let senToken = read (decryptString (encSenderToken authResp) pass) :: SenderToken
   saveAuthToken $ encReceiverToken senToken
   saveEncryptionKeySeed $ senKey1Seed senToken
-  putStrLn "done"
+  putStrLn ("username: " ++ name ++ " authorised with password " ++ pass)
   return ()
 
--- Add a User to the database off the authentication server
+-- Add a User to the database of the authentication server
 addUser :: [String] -> IO ()
 addUser params = do
   cnxnInfo <- getConnectionInfo AuthServer
@@ -218,46 +246,81 @@ addUser params = do
 
 --TODODODODODODOD fix path filename stuff here - can't reference anything outside current dir atm
 --storing a file in the file system
+-- This intends to write to a file on the system.
+-- Attempts to lock file with Lock Server, then gets location of primary file record (a file server address),
+-- then writes to the file server
+-- This will invalidate any cache copy the directory server has for this file
 storeFile :: [String] -> IO ()
 storeFile params = do
   let path = (params !! 0)
   token <- getAuthToken
   key1 <- getEncryptionKeySeed
-  cnxnInfo <- getConnectionInfo FileServer
-  fileData <- readFile path
-  let req = WriteFileReq token path (encryptString fileData key1)
-  resp <- performStoreFile req cnxnInfo
-  putStrLn $ show resp
-  return ()
+
+  --lock it
+  isLocked <- lockFile path
+
+  --TODO added repeated tries with exponential back-off
+  if not isLocked 
+  then do
+    putStrLn "Couldn't lock file"
+    return ()
+  else do
+    
+    --find location
+    cnxnInfo <- getConnectionInfo DirectoryServer
+    putStrLn ("resolving " ++ path ++ " for writting")
+    -- this will always return a file server record - either an existing record or a newly create one
+    resResponse <- resolveFile (ResolutionRequest path "WRITE" token) cnxnInfo 
+
+
+    --update it at location
+    let serverRec = serverRecord (resolution resResponse) 
+        cnxnInfo = ConnectionInformation (fsHost serverRec) (fsPort serverRec)
+    fileData <- readFile path
+    let req = WriteFileReq token path (encryptString fileData key1)
+    resp <- performStoreFile req cnxnInfo
+    putStrLn $ show resp
+
+    unlockFile path
+    return ()
   
 
+
+-- Looks up location of a file with the directory server and 
+-- fetches it from file server (unless the directory server had a cache copy)
+-- Doesn't require locking as not updating file at this time.
 retrieveFile :: [String] -> IO ()
 retrieveFile params = do
   let path = (params !! 0)
   token <- getAuthToken
-  cnxnInfo <- getConnectionInfo DirectoryServer
-  resResponse <- resolveFile (ResolutionRequest path "READ" token) cnxnInfo 
   key1 <- getEncryptionKeySeed
+  cnxnInfo <- getConnectionInfo DirectoryServer
+  putStrLn ("going to resolve file")
+  resResponse <- resolveFile (ResolutionRequest path "READ" token) cnxnInfo 
+  
+  case (resolutionStatus resResponse) of
+    True -> do
+      let fileRec = resolution resResponse
 
-  case (cacheHit resResponse) of
-    True -> do 
-      putStrLn $ "Cache HIT!!! WUHOO!"
-      --writeFile path $ decryptString (encryptedResult resp) key1
+      case (cacheHit resResponse) of
+        True -> do 
+          putStrLn $ "Cache HIT!!! WUHOO!"
+          writeFile (fileRecordName fileRec)  (decryptString (cachedData resResponse) key1)
+
+        False -> do
+          putStrLn $ "Cache MISS!!! Doh!" 
+          let serverRec = serverRecord fileRec 
+              cnxnInfo = ConnectionInformation (fsHost serverRec) (fsPort serverRec)
+              req = ReadFileReq token path 
+
+          fileRO <- performRetrieveFile req cnxnInfo
+          writeFile path (decryptString (encryptedResult fileRO) key1)
+           
+          putStrLn "File Retrieved"
 
     False -> do
-      putStrLn $ "Cache MISS!!! Doh!" 
-      --let serverRecord = serverRecord (resolution resResponse)
-      --let fileServerInfo = ConnectionInfo (fsHost) (fsPort)
-      putStrLn "done"
-  fileServerInfo <- getConnectionInfo FileServer
-  let fileRequest = ReadFileReq token path
-
-
-  --resp <- performRetrieveFile req cnxnInfo
-
-
-  --writeFile path $ decryptString (encryptedResult resp) key1
-  --putStrLn $ show resp
+      putStrLn "File resolution failed - file doesn't exist!!!"
+  
   return ()
 
 addFileServer :: [String] -> IO ()
@@ -278,12 +341,12 @@ helloWorld = liftIO $ do
 processArgs :: [String] -> IO ()
 processArgs (x:xs) = liftIO $ do
   case x of
-    "hello" 					-> helloWorld
-    "clean-etc"				-> removeETCDir
-    "auth"  					-> authenticate xs 
+    "hello" 					-> helloWorld             --simple test to ensure running
+    "clean-etc"				-> removeETCDir           --cleans config files from etc directory
+    "auth"  					-> authenticate xs        --
     "add-user"        -> addUser xs
-    "store-file"      -> storeFile xs
-    "retrieve-file"   -> retrieveFile xs
+    "write-file"      -> storeFile xs
+    "read-file"       -> retrieveFile xs
     "add-file-server" -> addFileServer xs
 
 

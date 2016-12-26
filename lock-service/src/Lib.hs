@@ -53,7 +53,7 @@ startApp = withLogging $ \ aplogger -> do
 
   forkIO $ taskScheduler 5
 
-  let settings = setPort 8080 $ setLogger aplogger defaultSettings
+  let settings = setPort 8081 $ setLogger aplogger defaultSettings
   runSettings settings app
 
 taskScheduler :: Int -> IO ()
