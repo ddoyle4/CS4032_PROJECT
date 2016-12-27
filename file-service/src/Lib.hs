@@ -62,6 +62,8 @@ taskScheduler delay = do
   warnLog $ "Task scheduler operating."
 
   threadDelay $ delay * 1000000
+  -- TODO - look through secondary records - check DIR_INFORM flag to see if the directory service has been informed - if not inform it
+  -- TODO look through secondary records for REPL flag to check any files that havent been replicated and replicate them to at least one other server
   taskScheduler delay -- tail recursion
 
 app :: Application

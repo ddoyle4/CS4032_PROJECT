@@ -64,6 +64,8 @@ taskScheduler :: Int -> IO ()
 taskScheduler delay = do
   warnLog $ "Task scheduler operating."
 
+  -- TODO - grab cache data
+  -- TODO inform file servers of eachothers existence
   threadDelay $ delay * 1000000
   taskScheduler delay -- tail recursion
 
@@ -200,7 +202,7 @@ incrementWeight w = show ((read w :: Int) + 1)
 
 addRecord :: FileRecord -> IO ()
 addRecord r@(FileRecord _ name _ _) = do
-  withMongoDbConnection $ upsert (select ["fileRecordName" =: name] "fileRecord") $ toBSON r
+  withMongoDbConnection $ upsert (select ["fileRecordName" =: name] "fileRecords") $ toBSON r
 
 --Selects a file server for the new primary record based on the load currently (most recently)
 --on the server. This is currently based on smallest current size
