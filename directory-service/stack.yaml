@@ -51,7 +51,7 @@ packages:
       commit: e078def65d0dee1ea7e3205f445e47d5937851f3
   - location:
       git: https://github.com/ddoyle4/file-system-api.git
-      commit: 8fa6bca
+      commit: 82ffae9
 
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)

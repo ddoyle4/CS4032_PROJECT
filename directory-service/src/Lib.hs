@@ -66,8 +66,26 @@ taskScheduler delay = do
 
   -- TODO - grab cache data
   -- TODO inform file servers of eachothers existence
+  -- TODO request load stats
   threadDelay $ delay * 1000000
   taskScheduler delay -- tail recursion
+
+
+-- Task Scheduler Tasks --
+
+-- I have list of cache entries
+-- cacheFilled = true && cacheDirty = true    --keep trying to fetch file from ps until have file matching file verion in this record - then set to true & false
+-- cacheFilled = true && cacheDirty = false   -- do nothing
+-- cacheFilled = false && cacheDirty = true   -- 
+-- cacheFilled = false && cacheDirty = false
+-- Filling Cache Entries
+--updateCacheEntries :: IO ()
+--updateCacheEntries = do
+  
+
+
+
+-- Main Application -- 
 
 app :: Application
 app = serve api server
@@ -92,9 +110,10 @@ server =  resolveFile
     --  -> The client intends to WRITE to a file
     --    -> the file exists
     --      -> send the FileRecord for the primary server to the client
-    --      -> invalidate the cache record
+    --      -> set dirty flag for that cache record
     --    -> the file doesn't exist
     --      -> return a FileRecord for a file server based on the recent load on the servers
+    --      -> create empty cache entry for that file
     --
     -- Note - adding things to the cache simply adds an empty 
     resolveFile :: ResolutionRequest -> Handler ResolutionResponse
@@ -110,7 +129,7 @@ server =  resolveFile
           case primaryRecord of
             Just record   ->  do
 
-              cacheHit <- cachePromote record
+              cacheHit <- cachePromote record       --if cache exists, increase its age value, return cache record.
 
               case cacheHit of
                 Just cached   -> do
@@ -125,17 +144,20 @@ server =  resolveFile
               errorLog "This joker is trying to read a file that doesn't exist"
               return $ negativeResolutionResponse
 
-        "WRITE"   ->
+        "WRITE"   -> do
           
           case primaryRecord of
             Just record   -> do
-              cacheInvalidate record
+              --TODO update file version !!!!!!
+              --incrementFileVersion record
+              --cacheInvalidate record
               return $ ResolutionResponse True record False "" 
 
             Nothing       -> do   -- add new primary record to fileRecords
               bestFS <- selectAppropriateFileServer
               let newRecord = FileRecord "PRIMARY" name "1"  bestFS
               addRecord newRecord
+              --cacheInvalidate record     
               return $ ResolutionResponse True newRecord False ""
 
         _         -> do  --this is an ERROR state
@@ -178,7 +200,7 @@ cachePromote (FileRecord _ name version  _) = do
       let record = head cacheRecords
 
       --update weight
-      let updatedRecord = record { cacheWeight = (incrementWeight (cacheWeight record)) } 
+      let updatedRecord = record { cacheAge = (incrementAge (cacheAge record)) } 
       withMongoDbConnection $ upsert (select ["cacheName" =: name] "cacheRecords") $ toBSON updatedRecord
 
       if cacheFilled record
@@ -186,19 +208,40 @@ cachePromote (FileRecord _ name version  _) = do
       else return Nothing
 
     0 -> do 
-      let record = CacheRecord name version  "" False "0" 
+      maxAge <- getNewCacheAge
+      let record = CacheRecord name version  "" False False maxAge 
       withMongoDbConnection $ upsert (select ["cacheName" =: name] "cacheRecords") $ toBSON record
       return Nothing
-      
 
+
+--TODO implement this better
 cacheInvalidate :: FileRecord -> IO ()
 cacheInvalidate (FileRecord _ name _ _) = do
   withMongoDbConnection $ do
     delete (select ["cacheName" =: name] "cacheRecords")
 
 
-incrementWeight :: String -> String
-incrementWeight w = show ((read w :: Int) + 1)
+--calculates an age value for a new cache entry
+getNewCacheAge :: IO String 
+getNewCacheAge = do
+  cacheRecords <- withMongoDbConnection $ do
+    docs <- find (select [] "cacheRecords") >>= drainCursor
+    return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe CacheRecord) docs
+
+  let maxCacheAge = getMaxCache cacheRecords "0"
+  return maxCacheAge
+
+
+getMaxCache :: [CacheRecord] -> String -> String
+getMaxCache (cr:crs) max =
+	if ( read (cacheAge cr) :: Int) > ( read max :: Int)
+	then getMaxCache crs (cacheAge cr)
+	else getMaxCache crs max
+
+getMaxCache [] max = max 
+
+incrementAge :: String -> String
+incrementAge w = show ((read w :: Int) + 1)
 
 addRecord :: FileRecord -> IO ()
 addRecord r@(FileRecord _ name _ _) = do
