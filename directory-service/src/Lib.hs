@@ -57,7 +57,7 @@ startApp = withLogging $ \ aplogger -> do
   --NOTE task scheduler frequency increased to cater for performing cache retrievals
   --don't want to do this as part of resolution request as it would slow down response on that
   --request
-  forkIO $ taskScheduler 5
+  forkIO $ taskScheduler 15
 
   let settings = setPort 8084 $ setLogger aplogger defaultSettings
   runSettings settings app
@@ -131,7 +131,7 @@ genToken = encryptString (show (ReceiverToken key3Seed "DIR_SERVER")) key2Seed
 
 performReadRequest :: ReadFileReq -> FileServerRecord -> IO ReadFileResp
 performReadRequest req record = do
-  let str = "POST http://" ++ ("192.168.2.19") ++  ":" ++ (fsPort record) ++ "/readFromFile"
+  let str = "POST http://" ++ (fsHost record) ++  ":" ++ (fsPort record) ++ "/readFromFile"
   let initReq = parseRequest_ str
   let request = setRequestBodyJSON req $ initReq
   noticeLog $ "before call " ++ str
@@ -193,11 +193,13 @@ server =  resolveFile
             Just record   ->  do
 
               cacheHit <- cachePromote record       --if cache exists, increase its age value, return cache record.
+              noticeLog $ "reading file"
+              noticeLog $ show rr
 
               case cacheHit of
                 Just cached   -> do
 
-                  let rToken = read (decryptString (cacheData cached) key2Seed) :: ReceiverToken 
+                  let rToken = read (decryptString token key2Seed) :: ReceiverToken 
                   let encFile = encryptString (cacheData cached) (recKey1Seed rToken)
                   return $ ResolutionResponse True record True encFile
 
