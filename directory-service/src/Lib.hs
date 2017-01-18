@@ -47,6 +47,8 @@ import           System.Log.Handler.Syslog
 import           System.Log.Logger
 import           FileSystemDirectoryServerAPI
 import           FileSystemAuthServerAPI hiding (Lib, API)
+import           FileSystemFileServerAPI hiding (Lib, API, fileVersion)
+import           Network.HTTP.Simple hiding (Proxy)
 
 startApp :: IO ()    -- set up wai logger for service to output apache style logging for rest calls
 startApp = withLogging $ \ aplogger -> do
@@ -62,29 +64,89 @@ startApp = withLogging $ \ aplogger -> do
 
 taskScheduler :: Int -> IO ()
 taskScheduler delay = do
-  warnLog $ "Task scheduler operating."
+	warnLog $ "Task scheduler operating."
 
-  -- TODO - grab cache data
-  -- TODO inform file servers of eachothers existence
-  -- TODO request load stats
-  threadDelay $ delay * 1000000
-  taskScheduler delay -- tail recursion
+	records <- allCacheRecords
+	updateCacheEntries records
+	noticeLog $ "all cache entries updated"
+	-- TODO - grab cache data
+	-- TODO inform file servers of eachothers existence
+	-- TODO request load stats
+	threadDelay $ delay * 1000000
+	taskScheduler delay -- tail recursion
 
 
 -- Task Scheduler Tasks --
 
--- I have list of cache entries
--- cacheFilled = true && cacheDirty = true    --keep trying to fetch file from ps until have file matching file verion in this record - then set to true & false
--- cacheFilled = true && cacheDirty = false   -- do nothing
--- cacheFilled = false && cacheDirty = true   -- 
--- cacheFilled = false && cacheDirty = false
--- Filling Cache Entries
---updateCacheEntries :: IO ()
---updateCacheEntries = do
+-- The cache filling logic...
+-- cacheFilled = true   && cacheDirty = true    -- fetch until have version on record - set T | F
+-- cacheFilled = true   && cacheDirty = false   -- do nothing
+-- cacheFilled = false  && cacheDirty = true    -- fetch until have version on record - set T | F
+-- cacheFilled = false  && cacheDirty = false   -- grab file ignore version - set T | F
+updateCacheEntries :: [CacheRecord] -> IO ()
+updateCacheEntries (cacheRecord@(CacheRecord name version _ filled dirty _) : records) = do
+  noticeLog $ "all cache entries updated"
+  if dirty
+  then do
+    resp <- getFile $ cacheName cacheRecord
+    when (version == (currentFileVersion resp)) $ updateCache name (decryptString (encryptedResult resp) key3Seed)
+    noticeLog $ "Filled cache for " ++ name
+  else do
+    when (not filled) $ do
+      resp <- getFile $ cacheName cacheRecord
+      updateCache name (decryptString (encryptedResult resp) key3Seed)
+      noticeLog $ "Filled cache for " ++ name
+
+  updateCacheEntries records
+
+updateCacheEntries [] = return ()
+
+-- performs "read file" request on a file server to get file contents into cache
+getFile :: String -> IO ReadFileResp
+getFile name = do
+  serverRecord <- locateBestCopyFile name
+  let readRequest = ReadFileReq genToken name
+  resp <- performReadRequest readRequest serverRecord
+  return resp
   
+-- Returns the server record for the file server containing the file with the least load
+locateBestCopyFile :: String -> IO FileServerRecord
+locateBestCopyFile name = do
+  allServerRecords <- allFileLocations name
+  allServerRecords' <- updateLoadInfo allServerRecords []
+  return $ filterSmallestSize allServerRecords' (head allServerRecords')
 
+-- updates the load information to most up-to-date for a list of server records
+updateLoadInfo :: [FileServerRecord] -> [FileServerRecord] -> IO [FileServerRecord]
+updateLoadInfo (record@(FileServerRecord h p load size):records) updated = do
+  currentRec <- getFileServerRecord h p
+  let updatedRec = record { fiveMinLoad = (fiveMinLoad currentRec), currentSize = (currentSize currentRec) }
+  updateLoadInfo records (updated ++ [updatedRec])
 
+updateLoadInfo [] updated = return updated
 
+-- generates token for secure communication
+genToken :: String
+genToken = encryptString (show (ReceiverToken key3Seed "DIR_SERVER")) key2Seed
+
+performReadRequest :: ReadFileReq -> FileServerRecord -> IO ReadFileResp
+performReadRequest req record = do
+  let str = "POST http://" ++ ("192.168.2.19") ++  ":" ++ (fsPort record) ++ "/readFromFile"
+  let initReq = parseRequest_ str
+  let request = setRequestBodyJSON req $ initReq
+  noticeLog $ "before call " ++ str
+  response <- httpJSON request
+  noticeLog $ "after call"
+  let ret = (getResponseBody response :: ReadFileResp)
+  return ret
+ 
+updateCache :: String -> String -> IO ()
+updateCache name newData = do
+	currentCache <- getCacheRecord name
+	let updatedCache = currentCache {cacheData = newData, cacheFilled = True, cacheDirty = False}
+	withMongoDbConnection $ upsert (select ["cacheName" =: name] "cacheRecords") $ toBSON updatedCache
+	return ()
+  
 -- Main Application -- 
 
 app :: Application
@@ -123,6 +185,7 @@ server =  resolveFile
       primaryRecord <- getPrimaryRecord name
 
       -- what does the client intend to do to this file?
+      -- TODO only get primary record for writes, any record for reads
       case intention of
         "READ"    -> do
           
@@ -140,7 +203,7 @@ server =  resolveFile
 
                 Nothing       -> return $ ResolutionResponse True record False ""
 
-            Nothing       -> do   --this is an ERROR state
+            Nothing       -> do             --this is an ERROR state
               errorLog "This joker is trying to read a file that doesn't exist"
               return $ negativeResolutionResponse
 
@@ -148,20 +211,19 @@ server =  resolveFile
           
           case primaryRecord of
             Just record   -> do
-              --TODO update file version !!!!!!
-              --incrementFileVersion record
-              --cacheInvalidate record
+              incrementFileVersion record
+              dirtyCache record
+              -- TODO delete secondary file records saved
               return $ ResolutionResponse True record False "" 
 
-            Nothing       -> do   -- add new primary record to fileRecords
+            Nothing       -> do             -- add new primary record to fileRecords
               bestFS <- selectAppropriateFileServer
               let newRecord = FileRecord "PRIMARY" name "1"  bestFS
               addRecord newRecord
-              --cacheInvalidate record     
+              dirtyCache newRecord     
               return $ ResolutionResponse True newRecord False ""
 
-        _         -> do  --this is an ERROR state
-          
+        _         -> do                     --this is an ERROR state
           errorLog "This joker doesn't know whether he's reading or writing"
           return $ negativeResolutionResponse
         
@@ -203,7 +265,7 @@ cachePromote (FileRecord _ name version  _) = do
       let updatedRecord = record { cacheAge = (incrementAge (cacheAge record)) } 
       withMongoDbConnection $ upsert (select ["cacheName" =: name] "cacheRecords") $ toBSON updatedRecord
 
-      if cacheFilled record
+      if cacheFilled record && not (cacheDirty record)
       then return $ Just record
       else return Nothing
 
@@ -214,31 +276,47 @@ cachePromote (FileRecord _ name version  _) = do
       return Nothing
 
 
---TODO implement this better
-cacheInvalidate :: FileRecord -> IO ()
-cacheInvalidate (FileRecord _ name _ _) = do
-  withMongoDbConnection $ do
-    delete (select ["cacheName" =: name] "cacheRecords")
+dirtyCache :: FileRecord -> IO ()
+dirtyCache fr@(FileRecord _ name _ _) = do
+  maxAge <- getNewCacheAge
+  newVersion <- getVersion fr
+  let record = CacheRecord name newVersion  "" False True maxAge 
+  withMongoDbConnection $ upsert (select ["cacheName" =: name] "cacheRecords") $ toBSON record
+  
+    
+-- Returns most up-to-date version on record for a file
+getVersion :: FileRecord -> IO String
+getVersion (FileRecord _ name _ _) = do
+  possibleRecord <- getPrimaryRecord name
 
+  case possibleRecord of
+    Just record -> return $ fileVersion record
+    Nothing -> return "0"
+    
+-- increments current version of file on record
+incrementFileVersion :: FileRecord -> IO ()
+incrementFileVersion record@(FileRecord _ name version _) = do
+  let updatedRecord = record { fileVersion =  (show ((read version :: Int) + 1)) }
+  withMongoDbConnection $ upsert (select ["fileRecordName" =: name] "fileRecords") $ toBSON updatedRecord
 
---calculates an age value for a new cache entry
+-- Calculates an age value for a new cache entry. This new age will be (max(cacheRecords.age) + 1)
 getNewCacheAge :: IO String 
 getNewCacheAge = do
   cacheRecords <- withMongoDbConnection $ do
     docs <- find (select [] "cacheRecords") >>= drainCursor
     return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe CacheRecord) docs
 
-  let maxCacheAge = getMaxCache cacheRecords "0"
-  return maxCacheAge
+  let topAge = getTopCache cacheRecords "0"
+  return topAge
 
-
-getMaxCache :: [CacheRecord] -> String -> String
-getMaxCache (cr:crs) max =
+--returns a string value representing (max(cacheRecords.age) + 1)
+getTopCache :: [CacheRecord] -> String -> String
+getTopCache (cr:crs) max =
 	if ( read (cacheAge cr) :: Int) > ( read max :: Int)
-	then getMaxCache crs (cacheAge cr)
-	else getMaxCache crs max
+	then getTopCache crs (cacheAge cr)
+	else getTopCache crs max
 
-getMaxCache [] max = max 
+getTopCache [] max = show ((read max :: Int) + 1) 
 
 incrementAge :: String -> String
 incrementAge w = show ((read w :: Int) + 1)
@@ -265,7 +343,7 @@ filterSmallestSize (x:xs) currentSmallest
 
 filterSmallestSize [] currentSmallest = currentSmallest
   
---attempts to return the primary record for the file
+--attempts to return the primary record for a file
 getPrimaryRecord :: String -> IO (Maybe FileRecord)
 getPrimaryRecord name = do
   files <- withMongoDbConnection $ do
@@ -276,6 +354,42 @@ getPrimaryRecord name = do
   case (length files) of
     0 -> return Nothing 
     _ -> return (Just (head files))
+
+getCacheRecord :: String -> IO CacheRecord
+getCacheRecord name = do
+	cacheRecords <- withMongoDbConnection $ do
+		docs <- find (select ["cacheName" =: name] "cacheRecords") >>= drainCursor
+		return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe CacheRecord) docs
+
+	return $ head cacheRecords 	--will always be one
+
+
+-- Returns current cache listing
+allCacheRecords :: IO [CacheRecord]
+allCacheRecords = do
+  cacheRecords <- withMongoDbConnection $ do
+    docs <- find (select [] "cacheRecords") >>= drainCursor
+    return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe CacheRecord) docs
+  return cacheRecords
+  
+-- Returns server record for all servers this file currently resides
+allFileLocations :: String -> IO [FileServerRecord]
+allFileLocations name = do
+  files <- withMongoDbConnection $ do
+    docs <- find (select ["fileRecordName" =: name] "fileRecords") >>= drainCursor
+    return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileRecord) docs
+
+  return $ map (serverRecord) files
+  
+
+-- TODO add error checking
+getFileServerRecord :: String -> String -> IO FileServerRecord
+getFileServerRecord h p = do
+  fileServers <- withMongoDbConnection $ do
+    docs <- find (select ["fsHost" =: h, "fsPort" =: p] "fileServers") >>= drainCursor
+    return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileServerRecord) docs
+
+  return $ head fileServers       -- this will be one always
 
 -- | error stuff
 custom404Error msg = err404 { errBody = msg }
