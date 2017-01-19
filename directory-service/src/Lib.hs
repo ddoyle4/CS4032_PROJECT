@@ -64,19 +64,47 @@ startApp = withLogging $ \ aplogger -> do
 
 taskScheduler :: Int -> IO ()
 taskScheduler delay = do
-	warnLog $ "Task scheduler operating."
+  warnLog $ "Task scheduler operating."
 
-	records <- allCacheRecords
-	updateCacheEntries records
-	noticeLog $ "all cache entries updated"
-	-- TODO - grab cache data
-	-- TODO inform file servers of eachothers existence
-	-- TODO request load stats
-	threadDelay $ delay * 1000000
-	taskScheduler delay -- tail recursion
+  records <- allCacheRecords
+  updateCacheEntries records
+  noticeLog $ "all cache entries updated"
+
+  servers <- allFileServerRecords
+  noticeLog $ "THE LIST IS: " ++ (show servers)
+  --notifyFileServers servers (FileServerNotification servers)
+  notifyFileServers servers servers
+  noticeLog $ "servers notified of their brethren"
+
+  -- TODO00000000d0dododoODODODOD request load stats
+  threadDelay $ delay * 1000000
+  taskScheduler delay -- tail recursion
 
 
 -- Task Scheduler Tasks --
+
+-- Notifying File Servers --
+-- Use to tell each file server where the others are
+notifyFileServers :: [FileServerRecord] -> [FileServerRecord] -> IO ()
+notifyFileServers (serverRecord@(FileServerRecord h p load size):serverRecords) list = do
+  let filterFunc = \r -> not ((fsHost r) == h && (fsPort r) == p)   -- no need to inform a server about itself!
+  noticeLog $ "to " ++ h ++ ":" ++ p ++ " I send " ++ (show (filter (filterFunc) list))
+  performNotification (Notification (FileServerNotification (filter (filterFunc) list))) serverRecord
+  notifyFileServers serverRecords list
+
+notifyFileServers [] _ = return ()
+
+performNotification :: Notification -> FileServerRecord -> IO Bool
+performNotification req record = do
+  let str = "POST http://" ++ (fsHost record) ++  ":" ++ (fsPort record) ++ "/notify"
+  let initReq = parseRequest_ str
+  let request = setRequestBodyJSON req $ initReq
+  noticeLog $ "before call " ++ str
+  response <- httpJSON request
+  noticeLog $ "after call"
+  let ret = (getResponseBody response :: Bool)
+  return ret
+
 
 -- The cache filling logic...
 -- cacheFilled = true   && cacheDirty = true    -- fetch until have version on record - set T | F
@@ -392,6 +420,16 @@ getFileServerRecord h p = do
     return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileServerRecord) docs
 
   return $ head fileServers       -- this will be one always
+
+allFileServerRecords :: IO [FileServerRecord]
+allFileServerRecords = do
+  fileServers <- withMongoDbConnection $ do
+    docs <- find (select [] "fileServers") >>= drainCursor
+    return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileServerRecord) docs
+
+  return fileServers
+
+
 
 -- | error stuff
 custom404Error msg = err404 { errBody = msg }

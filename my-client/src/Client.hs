@@ -55,6 +55,8 @@ performUnlockFile req info = do
 resolveFile :: ResolutionRequest -> ConnectionInformation -> IO ResolutionResponse
 resolveFile req info = do
   let str = "POST http://" ++ (hostAddr info) ++  ":" ++ (hostPort info) ++ "/resolveFile"
+  putStrLn str
+  putStrLn $ show req
   let initReq = parseRequest_ str
   let request = setRequestBodyJSON req $ initReq
   response <- httpJSON request
@@ -301,7 +303,7 @@ retrieveFile params = do
   case (resolutionStatus resResponse) of
     True -> do
       let fileRec = resolution resResponse
-
+      putStrLn $ "true response"
       case (cacheHit resResponse) of
         True -> do 
           putStrLn $ "Cache HIT!!! WUHOO!"

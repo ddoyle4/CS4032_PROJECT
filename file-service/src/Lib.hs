@@ -47,6 +47,8 @@ import           System.Log.Handler.Syslog
 import           System.Log.Logger
 import           FileSystemFileServerAPI
 import           FileSystemAuthServerAPI  hiding (API)
+import           FileSystemDirectoryServerAPI  hiding (API, fileVersion)
+
 
 startApp :: IO ()    -- set up wai logger for service to output apache style logging for rest calls
 startApp = withLogging $ \ aplogger -> do
@@ -75,6 +77,8 @@ api = Proxy
 server :: Server API
 server =  writeToFile
           :<|> readFromFile
+          :<|> notify
+          :<|> duplicate
   where
     writeToFile :: WriteFileReq -> Handler WriteFileResp
     writeToFile wr@(WriteFileReq token name contents) = liftIO $ do
@@ -83,12 +87,12 @@ server =  writeToFile
       case (length files) of
         1 -> do   --updating existing file
           let newVersion = (getIncrementedFileVersion (head files))
-          let updatedFile = DBFile name newVersion (extractFileData wr)
+          let updatedFile = DBFile name newVersion (extractFileData wr) True True (duplicated (head files))
           overwriteFile updatedFile
           return $ WriteFileResp True newVersion
 
-        0 -> do
-          overwriteFile $ DBFile name "1" (extractFileData wr)
+        0 -> do -- this is a new file
+          overwriteFile $ DBFile name "1" (extractFileData wr) False False [] 
           return $ WriteFileResp True "1"
 
         _ -> do   --error
@@ -103,6 +107,7 @@ server =  writeToFile
           let file = head files
           let encFileData = encryptString (fileData file) (getSeedFromToken rfr)
           return $ ReadFileResp True "ALL G" encFileData (fileVersion file)
+
         0 -> do
           return $ ReadFileResp False ("No record for " ++ name) "NOTHING" "-1"
 
@@ -110,9 +115,32 @@ server =  writeToFile
           errorLog $ "Search for " ++ name ++ " yielded " ++ (show (length files)) ++ " results, expected 1 or 0"
           return $ ReadFileResp False "FUBAR - check file server logs" "Nothing" "-1" 
 
+    notify :: Notification -> Handler Bool
+    notify listUpdate = liftIO $ do
+      clearFileServerLocations
+      updateFileServerLocations (fileServerRecords ((notification listUpdate)))
+      return True
+
+    duplicate :: DBFile -> Handler Bool
+    duplicate dbFile = liftIO $ do
+      overwriteFile dbFile { duplicate = True}
+      return True
+
+clearFileServerLocations :: IO ()
+clearFileServerLocations = do
+  withMongoDbConnection $ delete (select [] "fileServerLocations")
+
+-- Store list of file server records
+updateFileServerLocations :: [FileServerRecord] -> IO ()
+updateFileServerLocations (record@(FileServerRecord h p load size):records) = do
+  withMongoDbConnection $ upsert (select ["fsHost" =: h, "fsPort" =: p] "fileServerLocations") $ toBSON record
+  updateFileServerLocations records
+
+updateFileServerLocations [] = return ()
+
 -- store or update a file
 overwriteFile :: DBFile -> IO ()
-overwriteFile file@(DBFile name _ _) = do
+overwriteFile file@(DBFile name _ _ _ _ _) = do
   withMongoDbConnection $ upsert (select ["fileName" =: name] "files") $ toBSON file
   
 -- return all files matching "fileName"
@@ -124,7 +152,7 @@ searchFiles name = do
   return files
 
 getIncrementedFileVersion :: DBFile -> String 
-getIncrementedFileVersion (DBFile _ version _) = show ((read version :: Int) + 1)
+getIncrementedFileVersion (DBFile _ version _  _ _ _) = show ((read version :: Int) + 1)
 
 extractFileData :: WriteFileReq -> String
 extractFileData wfr@(WriteFileReq token name encData) = decryptString encData (recKey1Seed (getReceiverToken wfr))
