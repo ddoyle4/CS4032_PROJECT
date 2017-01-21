@@ -55,7 +55,7 @@ startApp :: IO ()    -- set up wai logger for service to output apache style log
 startApp = withLogging $ \ aplogger -> do
   warnLog "Starting File Server."
 
-  forkIO $ taskScheduler 15
+  forkIO $ taskScheduler 10
 
   let settings = setPort 8083 $ setLogger aplogger defaultSettings
   runSettings settings app
@@ -77,9 +77,14 @@ replicateFiles :: [DBFile] -> IO ()
 replicateFiles (file@(DBFile name _ _ isDuplicated isDirty copies _):files) = do
   servers <- leastLoadServers
   if isDirty
-  then replicateFile file copies
-  else when (not isDuplicated) $ do
-    replicateFile file $ take idealNumberDuplicated servers 
+  then do
+    replicateFile file copies
+    overwriteFile $ file { duplicateDirty = False }
+  else when ((not isDuplicated) && ((length copies) == 0)) $ do
+    noticeLog $ "going to replicate " ++ name
+    let replicationServers = take idealNumberDuplicated servers
+    replicateFile file replicationServers 
+    overwriteFile $ file { duplicated = replicationServers}
     noticeLog $ "replicated " ++ name ++  " on " ++ (show servers)
   replicateFiles files
 
