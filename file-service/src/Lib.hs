@@ -48,13 +48,14 @@ import           System.Log.Logger
 import           FileSystemFileServerAPI
 import           FileSystemAuthServerAPI  hiding (API)
 import           FileSystemDirectoryServerAPI  hiding (API, fileVersion)
+import           Network.HTTP.Simple hiding (Proxy)
 
 
 startApp :: IO ()    -- set up wai logger for service to output apache style logging for rest calls
 startApp = withLogging $ \ aplogger -> do
   warnLog "Starting File Server."
 
-  forkIO $ taskScheduler 5
+  forkIO $ taskScheduler 15
 
   let settings = setPort 8083 $ setLogger aplogger defaultSettings
   runSettings settings app
@@ -65,8 +66,41 @@ taskScheduler delay = do
 
   threadDelay $ delay * 1000000
   -- TODO - look through secondary records - check DIR_INFORM flag to see if the directory service has been informed - if not inform it
-  -- TODO look through secondary records for REPL flag to check any files that havent been replicated and replicate them to at least one other server
+  files <- allDBFiles
+  replicateFiles files
+  noticeLog $ "Finished Replicating All Files"
   taskScheduler delay -- tail recursion
+
+
+-- Task Scheduler Tasks --
+replicateFiles :: [DBFile] -> IO ()
+replicateFiles (file@(DBFile name _ _ isDuplicated isDirty copies _):files) = do
+  servers <- leastLoadServers
+  if isDirty
+  then replicateFile file copies
+  else when (not isDuplicated) $ do
+    replicateFile file $ take idealNumberDuplicated servers 
+    noticeLog $ "replicated " ++ name ++  " on " ++ (show servers)
+  replicateFiles files
+
+replicateFiles [] = return ()
+
+replicateFile :: DBFile -> [FileServerRecord] -> IO ()
+replicateFile file (server:servers) = do
+  sendFile file server
+  replicateFile file servers
+
+replicateFile _ [] = return ()
+
+sendFile :: DBFile -> FileServerRecord -> IO Bool
+sendFile file (FileServerRecord h p _ _) = do
+  let str = "POST http://" ++ h ++  ":" ++ p ++ "/duplicate"
+  let initReq = parseRequest_ str
+  let request = setRequestBodyJSON file $ initReq
+  response <- httpJSON request
+  let ret = (getResponseBody response :: Bool)
+  return ret
+ 
 
 app :: Application
 app = serve api server
@@ -87,12 +121,12 @@ server =  writeToFile
       case (length files) of
         1 -> do   --updating existing file
           let newVersion = (getIncrementedFileVersion (head files))
-          let updatedFile = DBFile name newVersion (extractFileData wr) True True (duplicated (head files))
+          let updatedFile = DBFile name newVersion (extractFileData wr) True True (duplicated (head files)) True
           overwriteFile updatedFile
           return $ WriteFileResp True newVersion
 
         0 -> do -- this is a new file
-          overwriteFile $ DBFile name "1" (extractFileData wr) False False [] 
+          overwriteFile $ DBFile name "1" (extractFileData wr) False False [] True
           return $ WriteFileResp True "1"
 
         _ -> do   --error
@@ -123,7 +157,7 @@ server =  writeToFile
 
     duplicate :: DBFile -> Handler Bool
     duplicate dbFile = liftIO $ do
-      overwriteFile dbFile { duplicate = True}
+      overwriteFile dbFile { duplicate = True, registered = False}
       return True
 
 clearFileServerLocations :: IO ()
@@ -140,7 +174,7 @@ updateFileServerLocations [] = return ()
 
 -- store or update a file
 overwriteFile :: DBFile -> IO ()
-overwriteFile file@(DBFile name _ _ _ _ _) = do
+overwriteFile file@(DBFile name _ _ _ _ _ _) = do
   withMongoDbConnection $ upsert (select ["fileName" =: name] "files") $ toBSON file
   
 -- return all files matching "fileName"
@@ -152,7 +186,7 @@ searchFiles name = do
   return files
 
 getIncrementedFileVersion :: DBFile -> String 
-getIncrementedFileVersion (DBFile _ version _  _ _ _) = show ((read version :: Int) + 1)
+getIncrementedFileVersion (DBFile _ version _ _ _ _ _) = show ((read version :: Int) + 1)
 
 extractFileData :: WriteFileReq -> String
 extractFileData wfr@(WriteFileReq token name encData) = decryptString encData (recKey1Seed (getReceiverToken wfr))
@@ -162,6 +196,31 @@ getReceiverToken (WriteFileReq token _ _) = read (decryptString token key2Seed) 
 
 getSeedFromToken :: ReadFileReq -> String
 getSeedFromToken (ReadFileReq token _) = recKey1Seed (read (decryptString token key2Seed) :: ReceiverToken)
+
+allDBFiles :: IO [DBFile]
+allDBFiles = do
+  files <- withMongoDbConnection $ do
+    docs <- find (select [] "files") >>= drainCursor
+    return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe DBFile) docs
+  return files
+  
+allFileServers :: IO [FileServerRecord]
+allFileServers = do
+  servers <- withMongoDbConnection $ do
+    docs <- find (select [] "fileServerLocations") >>= drainCursor
+    return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileServerRecord) docs
+  return servers
+
+-- TODO consider moving this to Dirctory Server API
+leastLoadServers :: IO [FileServerRecord]
+leastLoadServers = do
+  servers <- allFileServers
+  return $ sortServerLoad servers
+
+--TODO implement this 
+sortServerLoad :: [FileServerRecord] -> [FileServerRecord]
+sortServerLoad servers = servers
+sortServerLoad [] = []
 
 -- | error stuff
 custom404Error msg = err404 { errBody = msg }
