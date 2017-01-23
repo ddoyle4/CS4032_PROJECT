@@ -187,6 +187,7 @@ server :: Server API
 server =  resolveFile
           :<|> insertServerRecord
           :<|> insertFileRecord
+          :<|> transResolveFile
   where
     -- Resolve A File Location
     -- The logic here is as follows:
@@ -269,6 +270,47 @@ server =  resolveFile
     insertServerRecord fsr@(FileServerRecord host port _ _) = liftIO $ do
       withMongoDbConnection $ upsert (select ["fsHost" =: host, "fsPort" =: port] "fileServers") $ toBSON fsr
       return True
+
+    --This is a special case of the file resolution flow. This will be used by the
+    --transaction server. The transaction server can use this endpoint to find files on the
+    --file servers but hold back on updating the various states of caches and replications.
+    --When transactional changes are finally committed, the transaction server will call
+    --the "normal" resolveFile with relevant intentions in order to keep the cache and
+    --replication status up to date. This will return information about file locations but 
+    --will not update the state of the file records, cache or replication, except when 
+    --writing to a new file. In this case a new record will be created and stored in 
+    --the DB. This is so that subsequent calls by the transaction server to are not returned
+    --contradictory locations for the new file location.
+    transResolveFile :: ResolutionRequest -> Handler ResolutionResponse
+    transResolveFile rr@(ResolutionRequest name intention token) = liftIO $ do
+      primaryRecord <- getPrimaryRecord name
+      case intention of
+        "READ"    -> do
+          
+          case primaryRecord of
+            Just record   ->  do
+              return $ ResolutionResponse True record False ""
+
+            Nothing       -> do             --this is an ERROR state
+              errorLog $ "Transaction server attempting to read non-existant file"
+              return $ negativeResolutionResponse
+
+        "WRITE"   -> do
+          
+          case primaryRecord of
+            Just record   -> do
+              return $ ResolutionResponse True record False "" 
+
+            Nothing       -> do             -- add new primary record to fileRecords
+              bestFS <- selectAppropriateFileServer
+              let newRecord = FileRecord "PRIMARY" name "0"  bestFS
+              addRecord newRecord
+              dirtyCache newRecord     
+              return $ ResolutionResponse True newRecord False ""
+
+        _         -> do                     --this is an ERROR state
+          errorLog $ "Invalid intention from transaction server"
+          return $ negativeResolutionResponse
 
 --TODO change all the dbs string names in withMongoDB calls to variables
 

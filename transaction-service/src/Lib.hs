@@ -45,7 +45,7 @@ import           System.Log.Handler           (setFormatter)
 import           System.Log.Handler.Simple
 import           System.Log.Handler.Syslog
 import           System.Log.Logger
-import           FileSystemLockServerAPI
+import           FileSystemTransactionServerAPI
 
 startApp :: IO ()    -- set up wai logger for service to output apache style logging for rest calls
 startApp = withLogging $ \ aplogger -> do
@@ -70,50 +70,74 @@ api :: Proxy API
 api = Proxy
 
 server :: Server API
-server =  lockFile
-          :<|> unlockFile
+server =  initTransaction
+          :<|> commitTransaction
+          :<|> abortTransaction
+          :<|> action
 
-  where
-    lockFile :: LockFileReq -> Handler Bool
-    lockFile lr@(LockFileReq path) = liftIO $ do
-      noticeLog $ "Attempting to lock file"
-      lockSuccess <- performLockOnFile path
-      return lockSuccess
+    where
+      initTransaction :: InitTransReq -> Handler InitTransResp
+      initTransaction req = liftIO $ do
+        newID <- genNewTransaction
+        case newID of 
+          Just id -> return $ InitTransResp id True
+          Nothing -> do
+            errorLog $ "Init transaction failed"
+            return $ InitTransResp "" False
 
-    unlockFile :: UnlockFileReq -> Handler Bool
-    unlockFile ulf@(UnlockFileReq unlockVirtPath) = liftIO $ do
-      noticeLog $ "unlocking file"
-      --this is a forceful unlock and as such will always be successful
-      performUnlockOnFile unlockVirtPath
-      return True
+        commitTransaction :: CommitReq -> Handler CommitResp
+        commitTransaction req = liftIO $ do
+          let id = commitReqTransID req
+          success <- performCommitTransaction id
+          if success
+          then return $ CommitResp id True
+          else do 
+            errorLog $ "Failed to commit transaction " ++ id
+            return $ CommitResp id False
 
-performUnlockOnFile :: String -> IO ()
-performUnlockOnFile virtPath = do
-  updateLockOnFile (FileLock virtPath False)
+        abortTransaction :: AbortReq -> Handler AbortResp
+        abortTransaction req = liftIO $ do
+          let id = abortReqTransID req
+          success <- performAbortTransaction id
+          if success
+          then return $ AbortResp id True
+          else do 
+            errorLog $ "Failed to abort transaction " ++ id
+            return $ AbortResp id False
+
+
+        action :: ActionReq -> Handler ActionResp
+        action req = liftIO $ do
+          let id = actionReqTransID req
+          success <- registerAction req
+          if success
+          then return $ ActionResp id True 
+          else do 
+            errorLog $ "Failed to register action " ++ (show req)
+            return $ ActionResp id False
+
+
+genNewTransaction :: IO String
+genNewTransaction = do
+  newID <- genNewID
+  let newTrans = Transaction newID (show Building)
+  withMongoDbConnection $ upsert (select ["transactionID" =: newID] transactionDBName) $ toBSON newTrans
+  return newID
+
+genNewID :: IO String
+genNewID = do
+  transactions <- allTransactions
+  maxID <- getCurrentMaxID transactions "0"
+  return $ show ((read maxID :: Int) + 1)
+
+getCurrentMaxID :: [Transaction] -> String -> String
+getCurrentMaxID (t:ts) max
+  | (read (transactionID t) :: Int) > (read max :: Int) = getCurrentMaxID ts (transactionID t)
+  | otherwise = getCurrentMaxID ts max
+
+getCurrentMaxID [] max = max
   
 
-performLockOnFile :: String -> IO Bool
-performLockOnFile virtPath = do
-  fileIsLocked <- isFileLocked virtPath 
-  if fileIsLocked
-  then return False
-  else do
-    updateLockOnFile (FileLock virtPath True)
-    return True
-
-isFileLocked :: String -> IO Bool
-isFileLocked virtPath = do
-  locks <- withMongoDbConnection $ do
-    ls <- find (select ["virtLockPath" =: virtPath] "locks") >>= drainCursor
-    return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileLock) ls
-
-  case (length locks) of
-    1 -> return (virtPathLocked (head locks))
-    _ -> return False
-
-updateLockOnFile :: FileLock -> IO ()
-updateLockOnFile newLock@(FileLock virtPath _) = do
-  withMongoDbConnection $ upsert (select ["virtLockPath" =: virtPath] "locks") $ toBSON newLock
 
 -- | error stuff
 custom404Error msg = err404 { errBody = msg }
