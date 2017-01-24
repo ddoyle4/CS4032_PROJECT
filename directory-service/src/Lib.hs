@@ -77,6 +77,7 @@ taskScheduler delay = do
   noticeLog $ "servers notified of their brethren"
 
   -- TODO00000000d0dododoODODODOD request load stats
+  -- TODOODOD add adding servers and notifiying each of them periodically
   threadDelay $ delay * 1000000
   taskScheduler delay -- tail recursion
 

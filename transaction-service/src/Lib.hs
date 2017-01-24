@@ -35,7 +35,6 @@ import           Network.HTTP.Client          (defaultManagerSettings,
 import           Network.Wai
 import           Network.Wai.Handler.Warp
 import           Network.Wai.Logger
-import           RestClient
 import           Servant
 import qualified Servant.API                  as SC
 import qualified Servant.Client               as SC
@@ -46,6 +45,11 @@ import           System.Log.Handler.Simple
 import           System.Log.Handler.Syslog
 import           System.Log.Logger
 import           FileSystemTransactionServerAPI
+import           FileSystemDirectoryServerAPI hiding (API)
+import           FileSystemFileServerAPI hiding (API)
+import           FileSystemAuthServerAPI hiding (API)
+import           FileSystemLockServerAPI hiding (API)
+import           Network.HTTP.Simple hiding (Proxy)
 
 startApp :: IO ()    -- set up wai logger for service to output apache style logging for rest calls
 startApp = withLogging $ \ aplogger -> do
@@ -74,6 +78,7 @@ server =  initTransaction
           :<|> commitTransaction
           :<|> abortTransaction
           :<|> action
+          :<|> discovery
 
     where
       initTransaction :: InitTransReq -> Handler InitTransResp
@@ -85,58 +90,300 @@ server =  initTransaction
             errorLog $ "Init transaction failed"
             return $ InitTransResp "" False
 
-        commitTransaction :: CommitReq -> Handler CommitResp
-        commitTransaction req = liftIO $ do
-          let id = commitReqTransID req
-          success <- performCommitTransaction id
-          if success
-          then return $ CommitResp id True
-          else do 
-            errorLog $ "Failed to commit transaction " ++ id
-            return $ CommitResp id False
+      commitTransaction :: CommitReq -> Handler CommitResp
+      commitTransaction req = liftIO $ do
+        let transID = commitReqTransID req
+        success <- performCommitTransaction transID
+        if success
+        then return $ CommitResp transID True
+        else do 
+          errorLog $ "Failed to commit transaction " ++ transID
+          return $ CommitResp transID False
 
-        abortTransaction :: AbortReq -> Handler AbortResp
-        abortTransaction req = liftIO $ do
-          let id = abortReqTransID req
-          success <- performAbortTransaction id
-          if success
-          then return $ AbortResp id True
-          else do 
-            errorLog $ "Failed to abort transaction " ++ id
-            return $ AbortResp id False
-
-
-        action :: ActionReq -> Handler ActionResp
-        action req = liftIO $ do
-          let id = actionReqTransID req
-          success <- registerAction req
-          if success
-          then return $ ActionResp id True 
-          else do 
-            errorLog $ "Failed to register action " ++ (show req)
-            return $ ActionResp id False
+      abortTransaction :: AbortReq -> Handler AbortResp
+      abortTransaction req = liftIO $ do
+        let id = abortReqTransID req
+        success <- performAbortTransaction id
+        if success
+        then return $ AbortResp id True
+        else do 
+          errorLog $ "Failed to abort transaction " ++ id
+          return $ AbortResp id False
 
 
-genNewTransaction :: IO String
+      action :: ActionReq -> Handler ActionResp
+      action req = liftIO $ do
+        let id = actionReqTransID req
+        success <- registerAction req
+        if success
+        then return $ ActionResp id True 
+        else do 
+          errorLog $ "Failed to register action " ++ (show req)
+          return $ ActionResp id False
+
+      discovery :: FileSystemServerRecord -> Handler Bool
+      discovery record = liftIO $ do
+        let name = serverName record
+        withMongoDbConnection $ upsert (select ["serverName" =: name] "server-records") $ toBSON record
+        return True
+
+performAbortTransaction :: String -> IO Bool
+performAbortTransaction transID = do
+  actions <- getActionList transID
+  success <- performAbortAction actions
+  return success
+
+performCommitTransaction :: String -> IO Bool
+performCommitTransaction transID = do
+  actions <- getActionList transID
+  success <- performCommitAction actions
+  return success
+
+getActionList :: String -> IO [TransAction]
+getActionList transID = do
+  actions <- withMongoDbConnection $ do
+    docs <- find (select ["actionTransID" =: transID] "actions") >>= drainCursor
+    return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe TransAction) docs
+
+  return actions
+
+performAbortAction :: [TransAction] -> IO Bool
+performAbortAction (action@(TransAction id _ server _ name _ _):actions) = do
+  performAbortShadow (AbortShadowReq id) server
+  let updatedAction = action { actionStatus = "ABORTED" }
+  withMongoDbConnection $ upsert (select ["actionID" =: id] "server-records") $ toBSON updatedAction
+  unLockFile name
+
+  performCommitAction actions
+
+performAbortAction [] = return True
+
+
+performCommitAction :: [TransAction] -> IO Bool
+performCommitAction (action@(TransAction id _ server _ name _ _):actions) = do
+  performCommitShadow (CommitShadowReq id) server
+  updateDirServer action
+  let updatedAction = action { actionStatus = "COMMITTED" }
+  withMongoDbConnection $ upsert (select ["actionID" =: id] "server-records") $ toBSON updatedAction
+  unLockFile name
+
+  performCommitAction actions
+
+performCommitAction [] = return True
+
+genToken :: String
+genToken = encryptString (show (ReceiverToken key3Seed "TRANSACTION_SERVER")) key2Seed
+
+-- This performs a standard file resolution request. The resolution response
+-- is irrelevant but the request is performed in order to update the internal
+-- state of the directory server and ensure correct file versions, cache integrity
+-- and replication is preserved
+updateDirServer :: TransAction -> IO Bool
+updateDirServer (TransAction _ _ server typeAction name _ _) = do
+  let token = genToken
+  server  <- getServerRecord "DIR_SERVER"
+  performStandardResReq (ResolutionRequest name typeAction token) server
+  return True
+
+performAbortShadow :: AbortShadowReq -> FileServerRecord -> IO Bool
+performAbortShadow req (FileServerRecord h p _ _) = do
+  let str = "POST http://" ++ h ++  ":" ++ p ++ "/abortShadow"
+  let initReq = parseRequest_ str
+  let request = setRequestBodyJSON req $ initReq
+  response <- httpJSON request
+  let ret = (getResponseBody response :: Bool)
+  return ret
+
+
+performCommitShadow :: CommitShadowReq -> FileServerRecord -> IO Bool
+performCommitShadow req (FileServerRecord h p _ _) = do 
+  let str = "POST http://" ++ h ++  ":" ++ p ++ "/commitShadow"
+  let initReq = parseRequest_ str
+  let request = setRequestBodyJSON req $ initReq
+  response <- httpJSON request
+  let ret = (getResponseBody response :: Bool)
+  return ret
+
+  
+
+-- TODO if time - add error checking, e.g. exceeded max number concurrent transactions etc.
+genNewTransaction :: IO (Maybe String)
 genNewTransaction = do
   newID <- genNewID
   let newTrans = Transaction newID (show Building)
-  withMongoDbConnection $ upsert (select ["transactionID" =: newID] transactionDBName) $ toBSON newTrans
-  return newID
+  withMongoDbConnection $ upsert (select ["transactionID" =: newID] "transactions") $ toBSON newTrans
+  return $ Just newID
 
 genNewID :: IO String
 genNewID = do
   transactions <- allTransactions
-  maxID <- getCurrentMaxID transactions "0"
+  let maxID = getCurrentMaxID transactions transactionID "0"
   return $ show ((read maxID :: Int) + 1)
-
+{-
 getCurrentMaxID :: [Transaction] -> String -> String
 getCurrentMaxID (t:ts) max
   | (read (transactionID t) :: Int) > (read max :: Int) = getCurrentMaxID ts (transactionID t)
   | otherwise = getCurrentMaxID ts max
 
 getCurrentMaxID [] max = max
+-}
+
+getCurrentMaxID :: [a] -> (a -> String) -> String -> String
+getCurrentMaxID (t:ts) extractorFunc max
+  | (read (extractorFunc t) :: Int) > (read max :: Int) = getCurrentMaxID ts extractorFunc (extractorFunc t)
+  | otherwise = getCurrentMaxID ts extractorFunc max
+
+getCurrentMaxID [] _ max = max
+
+
+registerAction :: ActionReq -> IO Bool
+registerAction req@(ActionReq transID _ name encData token) = do
+  case (actionReqType req) of
+    "WRITE" -> do
+      let decData     = extractFileData req
+      let token       =  genToken
+      newActionID     <- genNewActionID transID
+      dirServer       <- getServerRecord "DIR_SERVER"
+      res             <- performTransResReq (ResolutionRequest name "WRITE" token) dirServer
+      let newAction = TransAction newActionID transID (serverRecord (resolution res)) "WRITE" name decData (show Building)
+      updateAction newAction
+      updateShadowFile newAction
+      return True
+
+    _ -> do
+      errorLog $ "Unrecognised action type " ++ (actionReqType req)
+      return False
+
+
+performTransResReq :: ResolutionRequest -> FileServerRecord -> IO ResolutionResponse
+performTransResReq req server = do
+  res <- performResolution req server "transResolveFile"
+  return res
+
+performStandardResReq :: ResolutionRequest -> FileServerRecord -> IO ResolutionResponse
+performStandardResReq req server = do
+  res <- performResolution req server "resolveFile"
+  return res
+
+performResolution :: ResolutionRequest -> FileServerRecord -> String -> IO ResolutionResponse
+performResolution req (FileServerRecord h p _ _) endpoint = do
+  let str = "POST http://" ++ h ++  ":" ++ p ++ endpoint
+  let initReq = parseRequest_ str
+  let request = setRequestBodyJSON req $ initReq
+  response <- httpJSON request
+  let ret = (getResponseBody response :: ResolutionResponse)
+  return ret
+
+-- Either creates a new action or writes to an existing one
+updateAction :: TransAction -> IO ()
+updateAction action@(TransAction _ _ _ _ name _ _) = do
+  withMongoDbConnection $ upsert (select ["actionFileName" =: name] "actions") $ toBSON action
+
+-- Updates the shadow file stored on a file server.
+-- Does the following to accomplish this task:
+--  1) Locks file
+--  2) Updates the shadow file for this file name stored on file server
+-- TODO add error handling
+updateShadowFile :: TransAction -> IO ()
+updateShadowFile action@(TransAction actionid actiontransid server _ name fileValue _) = do
+  let token = genToken
+  lockFile $ actionFileName action
+  performUpdateShadowFile (WriteShadowReq token name fileValue actionid actiontransid) server
+  return ()
+
+performUpdateShadowFile :: WriteShadowReq -> FileServerRecord -> IO Bool
+performUpdateShadowFile req (FileServerRecord h p _ _) = do
+  let str = "POST http://" ++ h ++  ":" ++ p ++ "/writeShadow"
+  let initReq = parseRequest_ str
+  let request = setRequestBodyJSON req $ initReq
+  response <- httpJSON request
+  let ret = (getResponseBody response :: Bool)
+  return ret
+
+getAction :: String -> IO TransAction
+getAction name = do
+  actions <- withMongoDbConnection $ do
+    docs <- find (select ["actionFileName" =: name] "actions") >>= drainCursor
+    return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe TransAction) docs
+
+  return $ head actions
   
+
+genNewActionID :: String -> IO String
+genNewActionID transID = do
+  actions <- allActionsForTrans transID
+  let maxID = getCurrentMaxID actions actionID "0"
+  return $ show ((read maxID :: Int) + 1)
+
+
+allTransactions :: IO [Transaction]
+allTransactions = do
+  transactions <- withMongoDbConnection $ do
+    docs <- find (select [] "transactions") >>= drainCursor
+    return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe Transaction) docs
+
+  return transactions
+
+allActions :: IO [TransAction]
+allActions = do
+  actions <- withMongoDbConnection $ do
+    docs <- find (select [] "actions") >>= drainCursor
+    return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe TransAction) docs
+
+  return actions
+
+allActionsForTrans :: String -> IO [TransAction]
+allActionsForTrans transID = do
+  actions <- withMongoDbConnection $ do
+    docs <- find (select ["actionTransID" =: transID] "actions") >>= drainCursor
+    return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe TransAction) docs
+
+  return actions
+
+extractFileData :: ActionReq -> String
+extractFileData ar@(ActionReq _ _ _ encData token) = decryptString encData (recKey1Seed (getReceiverToken ar))
+
+getReceiverToken :: ActionReq -> ReceiverToken
+getReceiverToken (ActionReq token _ _ _ _) = read (decryptString token key2Seed) :: ReceiverToken
+
+-- TODO add in repeated tries with exponential back off and 
+-- error handling
+lockFile :: String -> IO Bool
+lockFile name = do
+  lockServer <- getServerRecord "LOCK_SERVER"
+  performLockFile (LockFileReq name) lockServer
+  return True
+
+performLockFile :: LockFileReq -> FileServerRecord -> IO Bool
+performLockFile req (FileServerRecord h p _ _) = do
+  let str = "POST http://" ++ h ++  ":" ++ p ++ "/lockFile"
+  let initReq = parseRequest_ str
+  let request = setRequestBodyJSON req $ initReq
+  response <- httpJSON request
+  let ret = (getResponseBody response :: Bool)
+  return ret
+
+unLockFile :: String -> IO Bool
+unLockFile name = do
+  lockServer <- getServerRecord "LOCK_SERVER"
+  performUnlockFile (UnlockFileReq name) lockServer
+
+performUnlockFile :: UnlockFileReq -> FileServerRecord -> IO Bool
+performUnlockFile req (FileServerRecord h p _ _) = do
+  let str = "POST http://" ++ h ++  ":" ++ p ++ "/unLockFile"
+  let initReq = parseRequest_ str
+  let request = setRequestBodyJSON req $ initReq
+  response <- httpJSON request
+  let ret = (getResponseBody response :: Bool)
+  return ret
+
+getServerRecord :: String -> IO FileServerRecord
+getServerRecord name = do
+  records <- withMongoDbConnection $ do
+    docs <- find (select ["serverName" =: name] "server-records") >>= drainCursor
+    return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileSystemServerRecord) docs
+
+  return $ ( serverLocation (head records))
 
 
 -- | error stuff

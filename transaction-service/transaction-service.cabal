@@ -21,6 +21,26 @@ library
                      , servant-server
                      , wai
                      , warp
+                     , aeson
+                     , servant
+                     , servant-server
+                     , servant-client
+                     , transformers
+                     , wai
+                     , warp
+                     , wai-logger
+                     , mongoDB
+                     , hslogger
+                     , time
+                     , bson-generic
+                     , resourcet
+                     , text
+                     , bytestring
+                     , bson
+                     , mtl
+                     , http-client
+                     , file-system-api
+                     , http-conduit
   default-language:    Haskell2010
 
 executable transaction-service-exe
