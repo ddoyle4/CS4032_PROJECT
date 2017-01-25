@@ -50,11 +50,9 @@ import           FileSystemAuthServerAPI  hiding (API)
 import           FileSystemDirectoryServerAPI  hiding (API, fileVersion)
 import           Network.HTTP.Simple hiding (Proxy)
 
-
--- TODO find a better way to do this
-myIP    = "192.168.2.19"
-myPort  = "8083" 
-
+-- All instances of file server will be compiled with
+-- a unique identifier
+uniqueIdentifier = "FILE_SERVER_1"
 
 startApp :: IO ()    -- set up wai logger for service to output apache style logging for rest calls
 startApp = withLogging $ \ aplogger -> do
@@ -91,15 +89,15 @@ getUnregisteredFiles = do
   
 updateDirectoryServer :: [DBFile] -> IO Bool
 updateDirectoryServer (file@(DBFile name version _ _ _ _ _):files) = do
-  let thisServer = FileServerRecord myIP myPort "0" "0"
-  let record = FileRecord "SECONDARY" name version thisServer
+  myRecord <- getServerRecord uniqueIdentifier 
+  let thisServer = FileServerRecord (fsHost myRecord) (fsPort myRecord) "0" "0"
+      record = FileRecord "SECONDARY" name version thisServer
   dirServer <- getServerRecord "DIR_SERVER"
   performDirServerUpdate record dirServer
 
   updateDirectoryServer files
 
 updateDirectoryServer [] = return True
-
 
 performDirServerUpdate :: FileRecord -> FileServerRecord -> IO Bool
 performDirServerUpdate req (FileServerRecord h p _ _) = do
@@ -113,7 +111,7 @@ performDirServerUpdate req (FileServerRecord h p _ _) = do
 getServerRecord :: String -> IO FileServerRecord
 getServerRecord name = do
   records <- withMongoDbConnection $ do
-    docs <- find (select ["serverName" =: name] "server-records") >>= drainCursor
+    docs <- find (select ["serverName" =: name] "systemServerRecords") >>= drainCursor
     return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileSystemServerRecord) docs
 
   return $ ( serverLocation (head records))
@@ -238,7 +236,7 @@ server =  writeToFile
     discovery :: FileSystemServerRecord -> Handler Bool
     discovery record = liftIO $ do
       let name = serverName record
-      withMongoDbConnection $ upsert (select ["serverName" =: name] "server-records") $ toBSON record
+      withMongoDbConnection $ upsert (select ["serverName" =: name] "systemServerRecords") $ toBSON record
       return True
  
 

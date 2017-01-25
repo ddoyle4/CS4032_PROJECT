@@ -344,10 +344,12 @@ addFileServer :: [String] -> IO ()
 addFileServer params = do
   let host = (params !! 0)
   let port = (params !! 1)
+  let name = (params !! 2)
   cnxnInfo <- getConnectionInfo DirectoryServer
   let record = FileServerRecord host port "0" "0"
   resp <- performAddFileServer record cnxnInfo
   putStrLn $ show resp
+  updateDirServer (ConnectionInformation host port) name
   return ()  
 
 
@@ -378,16 +380,16 @@ processArgs (x:xs) = liftIO $ do
   case x of
     "hello" 					-> helloWorld             --simple test to ensure running
     "clean-etc"				-> removeETCDir           --cleans config files from etc directory
-    "auth"  					-> authenticate xs        
-    "add-user"        -> addUser xs
-    "write-file"      -> storeFile xs
-    "read-file"       -> retrieveFile xs
-    "add-file-server" -> addFileServer xs
+    "auth"  					-> authenticate xs      -- name, pass  
+    "add-user"        -> addUser xs           -- name, pass
+    "write-file"      -> storeFile xs         -- file_path
+    "read-file"       -> retrieveFile xs      -- file_path
+    "add-file-server" -> addFileServer xs     -- host, port, uniqueIdentifier (see file service Lib.hs)
 --    "trans-start"     -> transStart xs
 --    "trans-commit"    -> transCommit xs
 --    "trans-abort"     -> transAbort xs
 --    "trans-write"     -> transWrite xs
-    "configure"       -> configureFileSystem
+    "configure"       -> configureFileSystem  -- guided set up
 
 
 processArgs [] = liftIO $ do

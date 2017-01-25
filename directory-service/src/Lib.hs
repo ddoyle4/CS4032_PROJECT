@@ -295,7 +295,7 @@ server =  resolveFile
             Nothing       -> do             -- add new primary record to fileRecords
               bestFS <- selectAppropriateFileServer
               let newRecord = FileRecord "PRIMARY" name "1"  bestFS
-              addRecord newRecord
+              addRecord newRecord "PRIMARY"
               dirtyCache newRecord     
               return $ ResolutionResponse True newRecord False ""
 
@@ -307,7 +307,7 @@ server =  resolveFile
     --TODO check that it is inserting the right thing
     insertFileRecord :: FileRecord -> Handler Bool
     insertFileRecord record = liftIO $ do 
-      addRecord record
+      addRecord record "SECONDARY"
       return True
 
 
@@ -349,7 +349,7 @@ server =  resolveFile
             Nothing       -> do             -- add new primary record to fileRecords
               bestFS <- selectAppropriateFileServer
               let newRecord = FileRecord "PRIMARY" name "0"  bestFS
-              addRecord newRecord
+              addRecord newRecord "PRIMARY"
               dirtyCache newRecord     
               return $ ResolutionResponse True newRecord False ""
 
@@ -442,9 +442,9 @@ getTopCache [] max = show ((read max :: Int) + 1)
 incrementAge :: String -> String
 incrementAge w = show ((read w :: Int) + 1)
 
-addRecord :: FileRecord -> IO ()
-addRecord r@(FileRecord _ name _ _) = do
-  withMongoDbConnection $ upsert (select ["fileRecordName" =: name] "fileRecords") $ toBSON r
+addRecord :: FileRecord -> String ->  IO ()
+addRecord r@(FileRecord _ name _ _) rank= do
+  withMongoDbConnection $ upsert (select ["fileRecordName" =: name, "recordType" =: rank] "fileRecords") $ toBSON r
 
 --Selects a file server for the new primary record based on the load currently (most recently)
 --on the server. This is currently based on smallest current size
