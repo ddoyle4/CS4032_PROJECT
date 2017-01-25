@@ -51,6 +51,11 @@ import           FileSystemDirectoryServerAPI  hiding (API, fileVersion)
 import           Network.HTTP.Simple hiding (Proxy)
 
 
+-- TODO find a better way to do this
+myIP    = "192.168.2.19"
+myPort  = "8083" 
+
+
 startApp :: IO ()    -- set up wai logger for service to output apache style logging for rest calls
 startApp = withLogging $ \ aplogger -> do
   warnLog "Starting File Server."
@@ -65,7 +70,10 @@ taskScheduler delay = do
   warnLog $ "Task scheduler operating."
 
   threadDelay $ delay * 1000000
-  -- TODO - look through secondary records - check DIR_INFORM flag to see if the directory service has been informed - if not inform it
+
+  unregisteredFiles <- getUnregisteredFiles
+  updateDirectoryServer unregisteredFiles
+
   files <- allDBFiles
   replicateFiles files
   noticeLog $ "Finished Replicating All Files"
@@ -73,6 +81,44 @@ taskScheduler delay = do
 
 
 -- Task Scheduler Tasks --
+
+getUnregisteredFiles :: IO [DBFile]
+getUnregisteredFiles = do
+  files <- withMongoDbConnection $ do
+    docs <- find (select ["registered" =: False] "files") >>= drainCursor
+    return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe DBFile) docs
+  return files
+  
+updateDirectoryServer :: [DBFile] -> IO Bool
+updateDirectoryServer (file@(DBFile name version _ _ _ _ _):files) = do
+  let thisServer = FileServerRecord myIP myPort "0" "0"
+  let record = FileRecord "SECONDARY" name version thisServer
+  dirServer <- getServerRecord "DIR_SERVER"
+  performDirServerUpdate record dirServer
+
+  updateDirectoryServer files
+
+updateDirectoryServer [] = return True
+
+
+performDirServerUpdate :: FileRecord -> FileServerRecord -> IO Bool
+performDirServerUpdate req (FileServerRecord h p _ _) = do
+  let str = "POST http://" ++ h ++  ":" ++ p ++ "/insertFileRecord"
+  let initReq = parseRequest_ str
+  let request = setRequestBodyJSON req $ initReq
+  response <- httpJSON request
+  let ret = (getResponseBody response :: Bool)
+  return ret
+ 
+getServerRecord :: String -> IO FileServerRecord
+getServerRecord name = do
+  records <- withMongoDbConnection $ do
+    docs <- find (select ["serverName" =: name] "server-records") >>= drainCursor
+    return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileSystemServerRecord) docs
+
+  return $ ( serverLocation (head records))
+
+
 replicateFiles :: [DBFile] -> IO ()
 replicateFiles (file@(DBFile name _ _ isDuplicated isDirty copies _):files) = do
   servers <- leastLoadServers
@@ -118,6 +164,10 @@ server =  writeToFile
           :<|> readFromFile
           :<|> notify
           :<|> duplicate
+          :<|> writeShadow
+          :<|> commitShadow
+          :<|> abortShadow
+          :<|> discovery
   where
     writeToFile :: WriteFileReq -> Handler WriteFileResp
     writeToFile wr@(WriteFileReq token name contents) = liftIO $ do
@@ -126,7 +176,7 @@ server =  writeToFile
       case (length files) of
         1 -> do   --updating existing file
           let newVersion = (getIncrementedFileVersion (head files))
-          let updatedFile = DBFile name newVersion (extractFileData wr) True True (duplicated (head files)) True
+          let updatedFile = DBFile name newVersion (extractFileData wr) False True (duplicated (head files)) True
           overwriteFile updatedFile
           return $ WriteFileResp True newVersion
 
@@ -165,6 +215,52 @@ server =  writeToFile
       overwriteFile dbFile { duplicate = True, registered = False}
       return True
 
+    writeShadow :: WriteShadowReq -> Handler Bool
+    writeShadow wsr@(WriteShadowReq token name encFile v actID transActID) = liftIO $ do
+      let decFile = extractShadowFile wsr
+      let sf = ShadowFile actID transActID name decFile v "BUILDING"
+      withMongoDbConnection $ upsert (select ["shadowAID" =: actID] "shadowFiles") $ toBSON sf
+      return True
+
+    abortShadow :: AbortShadowReq -> Handler Bool
+    abortShadow asr@(AbortShadowReq id) = liftIO $ do
+      withMongoDbConnection $ delete (select ["shadowAID" =: id] "shadowFiles")
+      return True
+
+    commitShadow :: CommitShadowReq -> Handler Bool
+    commitShadow  csr@(CommitShadowReq id) = liftIO $ do
+      (ShadowFile aid tid name value v _) <- getShadowFile id
+      duplicatedLocations <- getDuplicatedLocations name
+      let updatedFile = DBFile name v value False True duplicatedLocations True
+      overwriteFile updatedFile
+      return True
+
+    discovery :: FileSystemServerRecord -> Handler Bool
+    discovery record = liftIO $ do
+      let name = serverName record
+      withMongoDbConnection $ upsert (select ["serverName" =: name] "server-records") $ toBSON record
+      return True
+ 
+
+
+getDuplicatedLocations :: String -> IO [FileServerRecord]
+getDuplicatedLocations name = do
+  f <- getFile name
+  return $ duplicated f
+
+extractShadowFile :: WriteShadowReq -> String
+extractShadowFile wsr@(WriteShadowReq token _ encData _ _ _) = decryptString encData (recKey1Seed (getShadowToken wsr))
+
+getShadowToken :: WriteShadowReq -> ReceiverToken
+getShadowToken (WriteShadowReq token _ _ _ _ _) = read (decryptString token key2Seed) :: ReceiverToken
+      
+getShadowFile :: String -> IO ShadowFile
+getShadowFile id = do
+  files <- withMongoDbConnection $ do
+    docs <- find (select ["shadowAID" =: id] "shadowFiles") >>= drainCursor
+    return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe ShadowFile) docs
+  return $ head files
+
 clearFileServerLocations :: IO ()
 clearFileServerLocations = do
   withMongoDbConnection $ delete (select [] "fileServerLocations")
@@ -189,6 +285,13 @@ searchFiles name = do
     docs <- find (select ["fileName" =: name] "files") >>= drainCursor
     return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe DBFile) docs
   return files
+
+getFile :: String -> IO DBFile
+getFile name = do
+  files <- withMongoDbConnection $ do
+    docs <- find (select ["fileName" =: name] "files") >>= drainCursor
+    return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe DBFile) docs
+  return $ head files
 
 getIncrementedFileVersion :: DBFile -> String 
 getIncrementedFileVersion (DBFile _ version _ _ _ _ _) = show ((read version :: Int) + 1)

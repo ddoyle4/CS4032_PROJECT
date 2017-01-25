@@ -20,6 +20,7 @@ import FileSystemAuthServerAPI hiding (Lib)
 import FileSystemFileServerAPI hiding (Lib)
 import FileSystemDirectoryServerAPI hiding (Lib)
 import FileSystemLockServerAPI hiding (Lib)
+import FileSystemTransactionServerAPI hiding (Lib)
 
 etcDirname :: String
 etcDirname = "/.haskell_client"
@@ -30,7 +31,7 @@ tokenFilename = "token"
 seedFilename :: String
 seedFilename = "encyption_key_seed"
 
-data FileSystemServer = AuthServer | FileServer | DirectoryServer | LockServer
+data FileSystemServer = AuthServer | FileServer | DirectoryServer | LockServer | TransactionServer
 
 -- GET / POST request methods
 
@@ -107,15 +108,14 @@ performAddUser user info = do
   response <- httpJSON request
   S8.putStrLn $ Yaml.encode (getResponseBody response :: Value)
 
-
-
 -- Connection Information Data Types & Methods
 -- These help with storing / retrieving locations of servers
 instance Show FileSystemServer where
-  show FileServer = "The File Server"
-  show AuthServer = "The Authentification Server"
-  show DirectoryServer = "The Directory Server"
-  show LockServer = "The Locking Server"
+  show FileServer = "FILE_SERVER"
+  show AuthServer = "AUTH_SERVER"
+  show DirectoryServer = "DIR_SERVER"
+  show LockServer = "LOCK_SERVER"
+  show TransactionServer = "TRANS_SERVER"
 
 class ETCFile a where
   etcfile :: a -> String
@@ -125,6 +125,7 @@ instance ETCFile FileSystemServer where
   etcfile FileServer = "file_server_ci"
   etcfile DirectoryServer = "directory_server_ci"
   etcfile LockServer = "lock_server_ci"
+  etcfile TransactionServer = "transaction_server_ci"
 
 data ConnectionInformation = ConnectionInformation
   { hostAddr :: String
@@ -164,7 +165,24 @@ getConnectionInfo fss = do
     return cnxnInfo
   else do
     cnxnInfo <- writeConnectionInfo fss
+    updateDirServer cnxnInfo (show fss)
     return cnxnInfo
+
+updateDirServer :: ConnectionInformation -> String -> IO Bool
+updateDirServer info@(ConnectionInformation host port) name = do
+  dirServer <- getConnectionInfo DirectoryServer 
+  let serverRec = FileServerRecord host port "0" "0"
+      fsServerRec = FileSystemServerRecord name serverRec
+  performUpdateDirServer fsServerRec dirServer
+
+performUpdateDirServer :: FileSystemServerRecord -> ConnectionInformation -> IO Bool
+performUpdateDirServer fss cnxnInfo@(ConnectionInformation h p) = do
+  let str = "POST http://" ++ h ++  ":" ++ p ++ "/addServer"
+  let initReq = parseRequest_ str
+  let request = setRequestBodyJSON fss $ initReq
+  response <- httpJSON request
+  let ret = (getResponseBody response :: Bool)
+  return ret
 
 saveAuthToken :: String -> IO ()
 saveAuthToken token = do
@@ -246,7 +264,6 @@ addUser params = do
   putStrLn $ "Added " ++ name ++ ":" ++ pass
   return ()
 
---TODODODODODODOD fix path filename stuff here - can't reference anything outside current dir atm
 --storing a file in the file system
 -- This intends to write to a file on the system.
 -- Attempts to lock file with Lock Server, then gets location of primary file record (a file server address),
@@ -286,8 +303,6 @@ storeFile params = do
     unlockFile path
     return ()
   
-
-
 -- Looks up location of a file with the directory server and 
 -- fetches it from file server (unless the directory server had a cache copy)
 -- Doesn't require locking as not updating file at this time.
@@ -335,6 +350,24 @@ addFileServer params = do
   putStrLn $ show resp
   return ()  
 
+
+-- TRANSACTION SERVER 
+--transStart :: IO ()
+--transStart 
+
+
+
+-- Establishes the location of all server from the user
+-- and sends these to the directory server to be propagated
+-- throughout the system
+configureFileSystem :: IO ()
+configureFileSystem = do
+  getConnectionInfo DirectoryServer
+  getConnectionInfo LockServer
+  getConnectionInfo AuthServer
+  getConnectionInfo TransactionServer
+  putStrLn $ "All servers have been located"
+
 -- be rude not to
 helloWorld :: IO ()
 helloWorld = liftIO $ do
@@ -345,11 +378,16 @@ processArgs (x:xs) = liftIO $ do
   case x of
     "hello" 					-> helloWorld             --simple test to ensure running
     "clean-etc"				-> removeETCDir           --cleans config files from etc directory
-    "auth"  					-> authenticate xs        --
+    "auth"  					-> authenticate xs        
     "add-user"        -> addUser xs
     "write-file"      -> storeFile xs
     "read-file"       -> retrieveFile xs
     "add-file-server" -> addFileServer xs
+--    "trans-start"     -> transStart xs
+--    "trans-commit"    -> transCommit xs
+--    "trans-abort"     -> transAbort xs
+--    "trans-write"     -> transWrite xs
+    "configure"       -> configureFileSystem
 
 
 processArgs [] = liftIO $ do

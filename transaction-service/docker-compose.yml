@@ -10,7 +10,7 @@ use-haskell:
     # - http_proxy=http://www-proxy.scss.tcd.ie:8080
   command: /usr/local/bin/transaction-service-exe
   ports:
-    - "8090:8084"
+    - "8090:8081"
   links:
     - database
 database:

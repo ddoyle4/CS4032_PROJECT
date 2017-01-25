@@ -46,6 +46,7 @@ import           System.Log.Handler.Simple
 import           System.Log.Handler.Syslog
 import           System.Log.Logger
 import           FileSystemAuthServerAPI
+import           FileSystemDirectoryServerAPI hiding (API)
 
 startApp :: IO ()    -- set up wai logger for service to output apache style logging for rest calls
 startApp = withLogging $ \ aplogger -> do
@@ -77,6 +78,7 @@ server = loadEnvironmentVariable
     :<|> performRESTCall
     :<|> debugSaveUser
 		:<|> authUser
+    :<|> discovery
 
   where
     -- | where is just a way of ensuring that the following functions are scoped to the server function. Each function
@@ -277,6 +279,12 @@ server = loadEnvironmentVariable
 
         _ -> return (AuthResponse "FAIL" (n) "NOTHING")
           
+
+    discovery :: FileSystemServerRecord -> Handler Bool
+    discovery record = liftIO $ do
+      let name = serverName record
+      withMongoDbConnection $ upsert (select ["serverName" =: name] "systemServerRecords") $ toBSON record
+      return True
 
 printDBUsers :: [DBUser] -> IO ()
 printDBUsers (x:xs) = do

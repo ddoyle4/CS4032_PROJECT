@@ -64,7 +64,16 @@ startApp = withLogging $ \ aplogger -> do
 
 taskScheduler :: Int -> IO ()
 taskScheduler delay = do
+  threadDelay $ delay * 1000000
+
   warnLog $ "Task scheduler operating."
+
+  -- Introduce all of the servers of the system
+  -- NOTE - this is different to introducing file
+  -- servers, which is a more dynamic 'discovery' 
+  -- procedure
+  systemServers <- allSystemServers
+  performDiscovery systemServers systemServers
 
   records <- allCacheRecords
   updateCacheEntries records
@@ -72,17 +81,51 @@ taskScheduler delay = do
 
   servers <- allFileServerRecords
   noticeLog $ "THE LIST IS: " ++ (show servers)
+
   --notifyFileServers servers (FileServerNotification servers)
   notifyFileServers servers servers
   noticeLog $ "servers notified of their brethren"
 
   -- TODO00000000d0dododoODODODOD request load stats
   -- TODOODOD add adding servers and notifiying each of them periodically
-  threadDelay $ delay * 1000000
   taskScheduler delay -- tail recursion
 
 
 -- Task Scheduler Tasks --
+
+allSystemServers :: IO [FileSystemServerRecord]
+allSystemServers = do
+  servers <- withMongoDbConnection $ do
+    docs <- find (select [] "systemServerRecords") >>= drainCursor
+    return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileSystemServerRecord) docs
+  
+  return servers
+
+performDiscovery :: [FileSystemServerRecord] -> [FileSystemServerRecord] -> IO ()
+performDiscovery (record@(FileSystemServerRecord name location):records) discoveryList = do
+  noticeLog $ "LISTSTST HEREREER " ++ (serverName record)
+  if ((serverName record) /= "DIR_SERVER") 
+  then do
+    noticeLog $ "sending list to " ++ (show record) 
+    sendDiscoveryList discoveryList location
+    performDiscovery records discoveryList
+  else performDiscovery records discoveryList
+
+performDiscovery [] _ = return ()
+
+sendDiscoveryList :: [FileSystemServerRecord] -> FileServerRecord -> IO Bool
+sendDiscoveryList (record:records) server@(FileServerRecord h p _ _) = do
+  let str = "POST http://" ++ h ++  ":" ++ p ++ "/discovery"
+  let initReq = parseRequest_ str
+  let request = setRequestBodyJSON record $ initReq
+  noticeLog $ "before call " ++ str
+  response <- httpJSON request
+  noticeLog $ "after call"
+  let ret = (getResponseBody response :: Bool)
+  sendDiscoveryList records server
+
+sendDiscoveryList [] _ = return True
+  
 
 -- Notifying File Servers --
 -- Use to tell each file server where the others are
@@ -189,6 +232,7 @@ server =  resolveFile
           :<|> insertServerRecord
           :<|> insertFileRecord
           :<|> transResolveFile
+          :<|> addServer
   where
     -- Resolve A File Location
     -- The logic here is as follows:
@@ -313,7 +357,11 @@ server =  resolveFile
           errorLog $ "Invalid intention from transaction server"
           return $ negativeResolutionResponse
 
---TODO change all the dbs string names in withMongoDB calls to variables
+    addServer :: FileSystemServerRecord -> Handler Bool
+    addServer sr@(FileSystemServerRecord name _) = liftIO $ do
+      withMongoDbConnection $ upsert (select ["serverName" =: name] "systemServerRecords") $ toBSON sr
+      return True
+
 
 -- Promotes the file in the cache. This means the following:
 --  -> If there is no cache entry, an empty cache record is stored in the DB.

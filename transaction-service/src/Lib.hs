@@ -46,14 +46,14 @@ import           System.Log.Handler.Syslog
 import           System.Log.Logger
 import           FileSystemTransactionServerAPI
 import           FileSystemDirectoryServerAPI hiding (API)
-import           FileSystemFileServerAPI hiding (API)
+import           FileSystemFileServerAPI hiding (API, fileVersion)
 import           FileSystemAuthServerAPI hiding (API)
 import           FileSystemLockServerAPI hiding (API)
 import           Network.HTTP.Simple hiding (Proxy)
 
 startApp :: IO ()    -- set up wai logger for service to output apache style logging for rest calls
 startApp = withLogging $ \ aplogger -> do
-  warnLog "Starting lock service."
+  warnLog "Starting transaction service."
 
   forkIO $ taskScheduler 5
 
@@ -124,7 +124,7 @@ server =  initTransaction
       discovery :: FileSystemServerRecord -> Handler Bool
       discovery record = liftIO $ do
         let name = serverName record
-        withMongoDbConnection $ upsert (select ["serverName" =: name] "server-records") $ toBSON record
+        withMongoDbConnection $ upsert (select ["serverName" =: name] "systemServerRecords") $ toBSON record
         return True
 
 performAbortTransaction :: String -> IO Bool
@@ -148,10 +148,10 @@ getActionList transID = do
   return actions
 
 performAbortAction :: [TransAction] -> IO Bool
-performAbortAction (action@(TransAction id _ server _ name _ _):actions) = do
+performAbortAction (action@(TransAction id _ server _ name _ _ _):actions) = do
   performAbortShadow (AbortShadowReq id) server
   let updatedAction = action { actionStatus = "ABORTED" }
-  withMongoDbConnection $ upsert (select ["actionID" =: id] "server-records") $ toBSON updatedAction
+  withMongoDbConnection $ upsert (select ["actionID" =: id] "systemServerRecords") $ toBSON updatedAction
   unLockFile name
 
   performCommitAction actions
@@ -160,11 +160,11 @@ performAbortAction [] = return True
 
 
 performCommitAction :: [TransAction] -> IO Bool
-performCommitAction (action@(TransAction id _ server _ name _ _):actions) = do
+performCommitAction (action@(TransAction id _ server _ name _ _ _):actions) = do
   performCommitShadow (CommitShadowReq id) server
   updateDirServer action
   let updatedAction = action { actionStatus = "COMMITTED" }
-  withMongoDbConnection $ upsert (select ["actionID" =: id] "server-records") $ toBSON updatedAction
+  withMongoDbConnection $ upsert (select ["actionID" =: id] "systemServerRecords") $ toBSON updatedAction
   unLockFile name
 
   performCommitAction actions
@@ -179,7 +179,7 @@ genToken = encryptString (show (ReceiverToken key3Seed "TRANSACTION_SERVER")) ke
 -- state of the directory server and ensure correct file versions, cache integrity
 -- and replication is preserved
 updateDirServer :: TransAction -> IO Bool
-updateDirServer (TransAction _ _ server typeAction name _ _) = do
+updateDirServer (TransAction _ _ server typeAction name _ _ _) = do
   let token = genToken
   server  <- getServerRecord "DIR_SERVER"
   performStandardResReq (ResolutionRequest name typeAction token) server
@@ -245,7 +245,8 @@ registerAction req@(ActionReq transID _ name encData token) = do
       newActionID     <- genNewActionID transID
       dirServer       <- getServerRecord "DIR_SERVER"
       res             <- performTransResReq (ResolutionRequest name "WRITE" token) dirServer
-      let newAction = TransAction newActionID transID (serverRecord (resolution res)) "WRITE" name decData (show Building)
+      let rec = resolution res
+      let newAction = TransAction newActionID transID (serverRecord rec) "WRITE" name decData (strInc (fileVersion rec)) (show Building)
       updateAction newAction
       updateShadowFile newAction
       return True
@@ -253,7 +254,6 @@ registerAction req@(ActionReq transID _ name encData token) = do
     _ -> do
       errorLog $ "Unrecognised action type " ++ (actionReqType req)
       return False
-
 
 performTransResReq :: ResolutionRequest -> FileServerRecord -> IO ResolutionResponse
 performTransResReq req server = do
@@ -276,7 +276,7 @@ performResolution req (FileServerRecord h p _ _) endpoint = do
 
 -- Either creates a new action or writes to an existing one
 updateAction :: TransAction -> IO ()
-updateAction action@(TransAction _ _ _ _ name _ _) = do
+updateAction action@(TransAction _ _ _ _ name _ _ _) = do
   withMongoDbConnection $ upsert (select ["actionFileName" =: name] "actions") $ toBSON action
 
 -- Updates the shadow file stored on a file server.
@@ -285,10 +285,10 @@ updateAction action@(TransAction _ _ _ _ name _ _) = do
 --  2) Updates the shadow file for this file name stored on file server
 -- TODO add error handling
 updateShadowFile :: TransAction -> IO ()
-updateShadowFile action@(TransAction actionid actiontransid server _ name fileValue _) = do
+updateShadowFile action@(TransAction actionid actiontransid server _ name fileValue v _) = do
   let token = genToken
   lockFile $ actionFileName action
-  performUpdateShadowFile (WriteShadowReq token name fileValue actionid actiontransid) server
+  performUpdateShadowFile (WriteShadowReq token name fileValue v actionid actiontransid) server
   return ()
 
 performUpdateShadowFile :: WriteShadowReq -> FileServerRecord -> IO Bool
@@ -380,11 +380,14 @@ performUnlockFile req (FileServerRecord h p _ _) = do
 getServerRecord :: String -> IO FileServerRecord
 getServerRecord name = do
   records <- withMongoDbConnection $ do
-    docs <- find (select ["serverName" =: name] "server-records") >>= drainCursor
+    docs <- find (select ["serverName" =: name] "systemServerRecords") >>= drainCursor
     return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileSystemServerRecord) docs
 
   return $ ( serverLocation (head records))
 
+
+strInc :: String -> String
+strInc v = show ((read v :: Int) + 1)
 
 -- | error stuff
 custom404Error msg = err404 { errBody = msg }
