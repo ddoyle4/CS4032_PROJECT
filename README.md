@@ -1,5 +1,5 @@
 # CS4032 Distributed File System
-This repository, including the API repository located [here] here, consitutes my submission for the CS4032 project.
+This repository, including the API repository located [here], consitutes my submission for the CS4032 project.
 All of the features of the distributed system have been implemented and are described below.
 
 ## Setting Up
