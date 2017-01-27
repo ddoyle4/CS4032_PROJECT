@@ -54,9 +54,6 @@ startApp :: IO ()    -- set up wai logger for service to output apache style log
 startApp = withLogging $ \ aplogger -> do
   warnLog "Starting Directory Server."
 
-  --NOTE task scheduler frequency increased to cater for performing cache retrievals
-  --don't want to do this as part of resolution request as it would slow down response on that
-  --request
   forkIO $ taskScheduler 15
 
   let settings = setPort 8084 $ setLogger aplogger defaultSettings
@@ -75,24 +72,21 @@ taskScheduler delay = do
   systemServers <- allSystemServers
   performDiscovery systemServers systemServers
 
+  -- Perform cache syn tasks
   records <- allCacheRecords
   updateCacheEntries records
-  noticeLog $ "all cache entries updated"
 
+  -- Ensure file servers are aware of each other
   servers <- allFileServerRecords
-  noticeLog $ "THE LIST IS: " ++ (show servers)
-
-  --notifyFileServers servers (FileServerNotification servers)
   notifyFileServers servers servers
-  noticeLog $ "servers notified of their brethren"
 
   -- TODO00000000d0dododoODODODOD request load stats
-  -- TODOODOD add adding servers and notifiying each of them periodically
   taskScheduler delay -- tail recursion
 
 
--- Task Scheduler Tasks --
+-------- BACKGROUND TASKS --------
 
+-- Returns list of all servers currently registered
 allSystemServers :: IO [FileSystemServerRecord]
 allSystemServers = do
   servers <- withMongoDbConnection $ do
@@ -101,6 +95,7 @@ allSystemServers = do
   
   return servers
 
+-- Informs all servers of each other
 performDiscovery :: [FileSystemServerRecord] -> [FileSystemServerRecord] -> IO ()
 performDiscovery (record@(FileSystemServerRecord name location):records) discoveryList = do
   noticeLog $ "LISTSTST HEREREER " ++ (serverName record)
@@ -113,6 +108,7 @@ performDiscovery (record@(FileSystemServerRecord name location):records) discove
 
 performDiscovery [] _ = return ()
 
+-- Sends list of servers to a server
 sendDiscoveryList :: [FileSystemServerRecord] -> FileServerRecord -> IO Bool
 sendDiscoveryList (record:records) server@(FileServerRecord h p _ _) = do
   let str = "POST http://" ++ h ++  ":" ++ p ++ "/discovery"
@@ -127,8 +123,7 @@ sendDiscoveryList (record:records) server@(FileServerRecord h p _ _) = do
 sendDiscoveryList [] _ = return True
   
 
--- Notifying File Servers --
--- Use to tell each file server where the others are
+-- Notifying file servers, tells each file server where the others are
 notifyFileServers :: [FileServerRecord] -> [FileServerRecord] -> IO ()
 notifyFileServers (serverRecord@(FileServerRecord h p load size):serverRecords) list = do
   let filterFunc = \r -> not ((fsHost r) == h && (fsPort r) == p)   -- no need to inform a server about itself!
@@ -219,7 +214,8 @@ updateCache name newData = do
 	withMongoDbConnection $ upsert (select ["cacheName" =: name] "cacheRecords") $ toBSON updatedCache
 	return ()
   
--- Main Application -- 
+
+-------- MAIN APPLICATION --------
 
 app :: Application
 app = serve api server
@@ -259,7 +255,6 @@ server =  resolveFile
       primaryRecord <- getPrimaryRecord name
 
       -- what does the client intend to do to this file?
-      -- TODO only get primary record for writes, any record for reads
       case intention of
         "READ"    -> do
           
@@ -304,7 +299,6 @@ server =  resolveFile
           return $ negativeResolutionResponse
         
     --used by the file servers to insert secondary records as they propogate
-    --TODO check that it is inserting the right thing
     insertFileRecord :: FileRecord -> Handler Bool
     insertFileRecord record = liftIO $ do 
       addRecord record "SECONDARY"
@@ -348,7 +342,7 @@ server =  resolveFile
 
             Nothing       -> do             -- add new primary record to fileRecords
               bestFS <- selectAppropriateFileServer
-              let newRecord = FileRecord "PRIMARY" name "1"  bestFS
+              let newRecord = FileRecord "PRIMARY" name "0"  bestFS
               addRecord newRecord "PRIMARY"
               dirtyCache newRecord     
               return $ ResolutionResponse True newRecord False ""
@@ -396,7 +390,7 @@ cachePromote (FileRecord _ name version  _) = do
       withMongoDbConnection $ upsert (select ["cacheName" =: name] "cacheRecords") $ toBSON record
       return Nothing
 
-
+-- Sets dirty flag
 dirtyCache :: FileRecord -> IO ()
 dirtyCache fr@(FileRecord _ name _ _) = do
   maxAge <- getNewCacheAge
@@ -448,7 +442,6 @@ addRecord r@(FileRecord _ name _ _) rank= do
 
 --Selects a file server for the new primary record based on the load currently (most recently)
 --on the server. This is currently based on smallest current size
---TODO ERROR CHECKING
 selectAppropriateFileServer :: IO FileServerRecord
 selectAppropriateFileServer = do
   fileServers <- withMongoDbConnection $ do
