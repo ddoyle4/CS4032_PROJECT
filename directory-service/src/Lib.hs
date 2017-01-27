@@ -348,7 +348,7 @@ server =  resolveFile
 
             Nothing       -> do             -- add new primary record to fileRecords
               bestFS <- selectAppropriateFileServer
-              let newRecord = FileRecord "PRIMARY" name "0"  bestFS
+              let newRecord = FileRecord "PRIMARY" name "1"  bestFS
               addRecord newRecord "PRIMARY"
               dirtyCache newRecord     
               return $ ResolutionResponse True newRecord False ""

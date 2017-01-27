@@ -131,6 +131,9 @@ performAbortTransaction :: String -> IO Bool
 performAbortTransaction transID = do
   actions <- getActionList transID
   success <- performAbortAction actions
+  oldTrans <- getTransaction transID
+  let updatedTrans = oldTrans { transactionStatus = "ABORTED" }
+  withMongoDbConnection $ upsert (select ["transactionID" =: transID] "transactions") $ toBSON updatedTrans
   return success
 
 performCommitTransaction :: String -> IO Bool
@@ -219,14 +222,6 @@ genNewID = do
   transactions <- allTransactions
   let maxID = getCurrentMaxID transactions transactionID "0"
   return $ show ((read maxID :: Int) + 1)
-{-
-getCurrentMaxID :: [Transaction] -> String -> String
-getCurrentMaxID (t:ts) max
-  | (read (transactionID t) :: Int) > (read max :: Int) = getCurrentMaxID ts (transactionID t)
-  | otherwise = getCurrentMaxID ts max
-
-getCurrentMaxID [] max = max
--}
 
 getCurrentMaxID :: [a] -> (a -> String) -> String -> String
 getCurrentMaxID (t:ts) extractorFunc max
@@ -241,12 +236,16 @@ registerAction req@(ActionReq transID _ name encData token) = do
   case (actionReqType req) of
     "WRITE" -> do
       let decData     = extractFileData req
+      errorLog $ (show req) ++ decData
+      errorLog $ "before"
       let token       =  genToken
+      errorLog $ "after"
       newActionID     <- genNewActionID transID
       dirServer       <- getServerRecord "DIR_SERVER"
       res             <- performTransResReq (ResolutionRequest name "WRITE" token) dirServer
       let rec = resolution res
-      let newAction = TransAction newActionID transID (serverRecord rec) "WRITE" name decData (strInc (fileVersion rec)) (show Building)
+      version <- determineFileVersion name
+      let newAction = TransAction newActionID transID (serverRecord rec) "WRITE" name decData (strInc version) (show Building)
       updateAction newAction
       updateShadowFile newAction
       return True
@@ -254,6 +253,15 @@ registerAction req@(ActionReq transID _ name encData token) = do
     _ -> do
       errorLog $ "Unrecognised action type " ++ (actionReqType req)
       return False
+
+
+determineFileVersion :: String -> IO String
+determineFileVersion name = do
+  action <- getAction name
+  case action of
+    Just a -> return $ actionFileVersion a 
+    Nothing -> return "0"
+
 
 performTransResReq :: ResolutionRequest -> FileServerRecord -> IO ResolutionResponse
 performTransResReq req server = do
@@ -267,7 +275,7 @@ performStandardResReq req server = do
 
 performResolution :: ResolutionRequest -> FileServerRecord -> String -> IO ResolutionResponse
 performResolution req (FileServerRecord h p _ _) endpoint = do
-  let str = "POST http://" ++ h ++  ":" ++ p ++ endpoint
+  let str = "POST http://" ++ h ++  ":" ++ p ++ "/" ++ endpoint
   let initReq = parseRequest_ str
   let request = setRequestBodyJSON req $ initReq
   response <- httpJSON request
@@ -287,8 +295,9 @@ updateAction action@(TransAction _ _ _ _ name _ _ _) = do
 updateShadowFile :: TransAction -> IO ()
 updateShadowFile action@(TransAction actionid actiontransid server _ name fileValue v _) = do
   let token = genToken
+  let encValue = encryptString (fileValue) key3Seed
   lockFile $ actionFileName action
-  performUpdateShadowFile (WriteShadowReq token name fileValue v actionid actiontransid) server
+  performUpdateShadowFile (WriteShadowReq token name encValue v actionid actiontransid) server
   return ()
 
 performUpdateShadowFile :: WriteShadowReq -> FileServerRecord -> IO Bool
@@ -300,13 +309,15 @@ performUpdateShadowFile req (FileServerRecord h p _ _) = do
   let ret = (getResponseBody response :: Bool)
   return ret
 
-getAction :: String -> IO TransAction
+getAction :: String -> IO (Maybe TransAction)
 getAction name = do
   actions <- withMongoDbConnection $ do
     docs <- find (select ["actionFileName" =: name] "actions") >>= drainCursor
     return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe TransAction) docs
 
-  return $ head actions
+  case (length actions) of
+    0 -> return Nothing
+    _ -> return $ Just (head actions)
   
 
 genNewActionID :: String -> IO String
@@ -340,11 +351,19 @@ allActionsForTrans transID = do
 
   return actions
 
+getTransaction :: String -> IO Transaction
+getTransaction id = do
+  transactions <- withMongoDbConnection $ do
+    docs <- find (select ["transactionID" =: id] "transactions") >>= drainCursor
+    return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe Transaction) docs
+
+  return $ head transactions
+
 extractFileData :: ActionReq -> String
 extractFileData ar@(ActionReq _ _ _ encData token) = decryptString encData (recKey1Seed (getReceiverToken ar))
 
 getReceiverToken :: ActionReq -> ReceiverToken
-getReceiverToken (ActionReq token _ _ _ _) = read (decryptString token key2Seed) :: ReceiverToken
+getReceiverToken (ActionReq _ _ _ _ token) = read (decryptString token key2Seed) :: ReceiverToken
 
 -- TODO add in repeated tries with exponential back off and 
 -- error handling
@@ -370,7 +389,7 @@ unLockFile name = do
 
 performUnlockFile :: UnlockFileReq -> FileServerRecord -> IO Bool
 performUnlockFile req (FileServerRecord h p _ _) = do
-  let str = "POST http://" ++ h ++  ":" ++ p ++ "/unLockFile"
+  let str = "POST http://" ++ h ++  ":" ++ p ++ "/unlockFile"
   let initReq = parseRequest_ str
   let request = setRequestBodyJSON req $ initReq
   response <- httpJSON request

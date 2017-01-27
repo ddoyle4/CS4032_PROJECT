@@ -215,7 +215,10 @@ server =  writeToFile
 
     writeShadow :: WriteShadowReq -> Handler Bool
     writeShadow wsr@(WriteShadowReq token name encFile v actID transActID) = liftIO $ do
+      errorLog $ "before: " ++ (show wsr)
       let decFile = extractShadowFile wsr
+      errorLog $ "after: " ++ decFile
+
       let sf = ShadowFile actID transActID name decFile v "BUILDING"
       withMongoDbConnection $ upsert (select ["shadowAID" =: actID] "shadowFiles") $ toBSON sf
       return True
@@ -228,9 +231,11 @@ server =  writeToFile
     commitShadow :: CommitShadowReq -> Handler Bool
     commitShadow  csr@(CommitShadowReq id) = liftIO $ do
       (ShadowFile aid tid name value v _) <- getShadowFile id
+      errorLog $ "found file: " ++ name
       duplicatedLocations <- getDuplicatedLocations name
       let updatedFile = DBFile name v value False True duplicatedLocations True
       overwriteFile updatedFile
+      deleteShadow id
       return True
 
     discovery :: FileSystemServerRecord -> Handler Bool
@@ -240,11 +245,15 @@ server =  writeToFile
       return True
  
 
+deleteShadow :: String -> IO ()
+deleteShadow id = withMongoDbConnection $ delete (select ["shadowAID" =: id] "shadowFiles")
 
 getDuplicatedLocations :: String -> IO [FileServerRecord]
 getDuplicatedLocations name = do
-  f <- getFile name
-  return $ duplicated f
+  file <- getFile name
+  case file of
+    Nothing -> return []
+    Just f -> return $ duplicated f
 
 extractShadowFile :: WriteShadowReq -> String
 extractShadowFile wsr@(WriteShadowReq token _ encData _ _ _) = decryptString encData (recKey1Seed (getShadowToken wsr))
@@ -284,12 +293,15 @@ searchFiles name = do
     return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe DBFile) docs
   return files
 
-getFile :: String -> IO DBFile
+getFile :: String -> IO (Maybe DBFile)
 getFile name = do
   files <- withMongoDbConnection $ do
     docs <- find (select ["fileName" =: name] "files") >>= drainCursor
     return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe DBFile) docs
-  return $ head files
+
+  case (length files) of
+    0 -> return Nothing
+    _ -> return $ Just $ head files
 
 getIncrementedFileVersion :: DBFile -> String 
 getIncrementedFileVersion (DBFile _ version _ _ _ _ _) = show ((read version :: Int) + 1)
