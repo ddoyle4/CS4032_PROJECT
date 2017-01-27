@@ -16,7 +16,7 @@ The user interacts with the system using the **my-client**, with the following g
 ```sh
 $ stack exec client-exe <argument>
 ```
-where *<argument>* can be the following:
+where **argument** can be the following:
 - `configure` - launches a guided set up of system - should be ran first
 - `clean-etc` - removes all of the local configuration files (saved server addresses, etc.)
 - `add-user <name> <password>` - adds a user to the authentification database
@@ -24,6 +24,10 @@ where *<argument>* can be the following:
 - `add-file-server <host> <port> <unique-identifier>` - adds a new file server to the system that will immediately be used for storing files. The unique identifier must match the identifier that was built with the file server instance.
 - `write-file <filename>` - name of the file to store in the system
 - `read-file <filename>` - name of the file to retrieve from the system
+- `trans-start` - initialises a new transaction. The transaction ID will be saved to a hidden file for use later.
+- `trans-write` - writes a file to the transaction, the file will not enter the main file system unti transaction has been completed.
+- `trans-commit` - commits the current transaction. 
+- `trans-abort` - aborts the current transaction.
 
 ## File System Components
 
