@@ -52,7 +52,7 @@ import           Network.HTTP.Simple hiding (Proxy)
 
 -- All instances of file server will be compiled with
 -- a unique identifier
-uniqueIdentifier = "FILE_SERVER_1"
+uniqueIdentifier = "FILE_SERVER_2"
 
 startApp :: IO ()    -- set up wai logger for service to output apache style logging for rest calls
 startApp = withLogging $ \ aplogger -> do

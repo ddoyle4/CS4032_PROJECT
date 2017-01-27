@@ -524,7 +524,7 @@ mongoDbPort = defEnv "MONGODB_PORT" read 27017 False -- 27017 is the default mon
 
 -- | The name of the mongoDB database that devnostics-rest uses to store and access data
 mongoDbDatabase :: IO String
-mongoDbDatabase = defEnv "MONGODB_DATABASE" id "USEHASKELLDB" True
+mongoDbDatabase = defEnv "MONGODB_DATABASE" id "FILESYSTEMDB" True
 
 -- | Determines log reporting level. Set to "DEBUG", "WARNING" or "ERROR" as preferred. Loggin is
 -- provided by the hslogger library.

@@ -9,7 +9,15 @@ $ stack build
 $ stack image container
 $ docker-compose up
 ```
-Each service should be set up and running before interacting with the system. The user should then run the `configure` command, as detailed below, to begin a guided set up.
+Each service should be set up and running before interacting with the system. Note, the user should replicate file-service as many times as required to obtain the desired number of file servers. When doing this, they must change the **unique identifier** for each file service stored in src/Lib.hs. This will be used to identify the server later when using the **add-file-server** command. Furthermore, the outward-facing ports in the docker-compose file should be changed for both the main service and its corresponding mongodb instance. **NOTE:** the service "file-service-2" is provided as an example of how to do this. It is a copy of "file-service" with the above changes implemented.
+
+The user should then run the `configure` command, as detailed below, to begin a guided set up.
+
+The user should now run the **add-file-server** command as documented below, providing the host address, host port, and the unique identifier for the file service.
+
+At this point the file system is fully operational.
+
+Users can be added to the system with the **add-user** command as documented below, and then authenticated with the **auth** command, by providing the name and password in both cases.
 
 ## Interaction
 The user interacts with the system using the **my-client**, with the following general command line argument structure:

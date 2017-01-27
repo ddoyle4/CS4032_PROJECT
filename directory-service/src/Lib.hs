@@ -80,7 +80,7 @@ taskScheduler delay = do
   servers <- allFileServerRecords
   notifyFileServers servers servers
 
-  -- TODO00000000d0dododoODODODOD request load stats
+  -- TODO request load stats
   taskScheduler delay -- tail recursion
 
 
@@ -98,10 +98,8 @@ allSystemServers = do
 -- Informs all servers of each other
 performDiscovery :: [FileSystemServerRecord] -> [FileSystemServerRecord] -> IO ()
 performDiscovery (record@(FileSystemServerRecord name location):records) discoveryList = do
-  noticeLog $ "LISTSTST HEREREER " ++ (serverName record)
   if ((serverName record) /= "DIR_SERVER") 
   then do
-    noticeLog $ "sending list to " ++ (show record) 
     sendDiscoveryList discoveryList location
     performDiscovery records discoveryList
   else performDiscovery records discoveryList
@@ -114,9 +112,7 @@ sendDiscoveryList (record:records) server@(FileServerRecord h p _ _) = do
   let str = "POST http://" ++ h ++  ":" ++ p ++ "/discovery"
   let initReq = parseRequest_ str
   let request = setRequestBodyJSON record $ initReq
-  noticeLog $ "before call " ++ str
   response <- httpJSON request
-  noticeLog $ "after call"
   let ret = (getResponseBody response :: Bool)
   sendDiscoveryList records server
 
@@ -127,7 +123,6 @@ sendDiscoveryList [] _ = return True
 notifyFileServers :: [FileServerRecord] -> [FileServerRecord] -> IO ()
 notifyFileServers (serverRecord@(FileServerRecord h p load size):serverRecords) list = do
   let filterFunc = \r -> not ((fsHost r) == h && (fsPort r) == p)   -- no need to inform a server about itself!
-  noticeLog $ "to " ++ h ++ ":" ++ p ++ " I send " ++ (show (filter (filterFunc) list))
   performNotification (Notification (FileServerNotification (filter (filterFunc) list))) serverRecord
   notifyFileServers serverRecords list
 
@@ -138,9 +133,7 @@ performNotification req record = do
   let str = "POST http://" ++ (fsHost record) ++  ":" ++ (fsPort record) ++ "/notify"
   let initReq = parseRequest_ str
   let request = setRequestBodyJSON req $ initReq
-  noticeLog $ "before call " ++ str
   response <- httpJSON request
-  noticeLog $ "after call"
   let ret = (getResponseBody response :: Bool)
   return ret
 
@@ -201,9 +194,7 @@ performReadRequest req record = do
   let str = "POST http://" ++ (fsHost record) ++  ":" ++ (fsPort record) ++ "/readFromFile"
   let initReq = parseRequest_ str
   let request = setRequestBodyJSON req $ initReq
-  noticeLog $ "before call " ++ str
   response <- httpJSON request
-  noticeLog $ "after call"
   let ret = (getResponseBody response :: ReadFileResp)
   return ret
  
@@ -580,7 +571,7 @@ mongoDbPort = defEnv "MONGODB_PORT" read 27017 False -- 27017 is the default mon
 
 -- | The name of the mongoDB database that devnostics-rest uses to store and access data
 mongoDbDatabase :: IO String
-mongoDbDatabase = defEnv "MONGODB_DATABASE" id "USEHASKELLDB" True
+mongoDbDatabase = defEnv "MONGODB_DATABASE" id "FILESYSTEMDB" True
 
 -- | Determines log reporting level. Set to "DEBUG", "WARNING" or "ERROR" as preferred. Loggin is
 -- provided by the hslogger library.

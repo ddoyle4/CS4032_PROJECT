@@ -305,7 +305,7 @@ authenticate params = do
   let senToken = read (decryptString (encSenderToken authResp) pass) :: SenderToken
   saveAuthToken $ encReceiverToken senToken
   saveEncryptionKeySeed $ senKey1Seed senToken
-  putStrLn ("username: " ++ name ++ " authorised with password " ++ pass)
+  putStrLn ("username: " ++ name ++ " authorised with password: " ++ pass)
   return ()
 
 -- Add a User to the database of the authentication server
@@ -486,7 +486,7 @@ configureFileSystem = do
   getConnectionInfo LockServer
   getConnectionInfo AuthServer
   getConnectionInfo TransactionServer
-  putStrLn $ "All servers have been located"
+  putStrLn $ "All servers have been located.\n Don't forget to add file servers with 'add-file-server''"
 
 -- be rude not to
 helloWorld :: IO ()
@@ -496,18 +496,18 @@ helloWorld = liftIO $ do
 processArgs :: [String] -> IO ()
 processArgs (x:xs) = liftIO $ do
   case x of
-    "hello" 					-> helloWorld             --simple test to ensure running
-    "clean-etc"				-> removeETCDir           --cleans config files from etc directory
+    "hello" 					-> helloWorld           -- simple test to ensure running
+    "clean-etc"				-> removeETCDir         -- cleans config files from etc directory
     "auth"  					-> authenticate xs      -- name, pass  
     "add-user"        -> addUser xs           -- name, pass
     "write-file"      -> storeFile xs         -- file_path
     "read-file"       -> retrieveFile xs      -- file_path
     "add-file-server" -> addFileServer xs     -- host, port, uniqueIdentifier (see file service Lib.hs)
-    "trans-start"     -> transStart
-    "trans-commit"    -> transCommit
-    "trans-abort"     -> transAbort
-    "trans-write"     -> transWrite xs
-    "configure"       -> configureFileSystem  -- guided set up
+    "trans-start"     -> transStart           -- no params
+    "trans-commit"    -> transCommit          -- no params
+    "trans-abort"     -> transAbort           -- no params
+    "trans-write"     -> transWrite xs        -- file_path
+    "configure"       -> configureFileSystem  -- guided set up, no params
 
 
 processArgs [] = liftIO $ do

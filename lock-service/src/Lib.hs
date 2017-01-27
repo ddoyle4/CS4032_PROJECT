@@ -76,12 +76,15 @@ server =  lockFile
           :<|> discovery
 
   where
+    -- Attempts to lock a file in the system.
+    -- Returns True if not already locked, false otherwise
     lockFile :: LockFileReq -> Handler Bool
     lockFile lr@(LockFileReq path) = liftIO $ do
       noticeLog $ "Attempting to lock file"
       lockSuccess <- performLockOnFile path
       return lockSuccess
 
+    -- Unlocks a file in the system
     unlockFile :: UnlockFileReq -> Handler Bool
     unlockFile ulf@(UnlockFileReq unlockVirtPath) = liftIO $ do
       noticeLog $ "unlocking file"
@@ -89,18 +92,20 @@ server =  lockFile
       performUnlockOnFile unlockVirtPath
       return True
 
+    -- Allows directory server to insert records concerning the location of other
+    -- servers in the system
     discovery :: FileSystemServerRecord -> Handler Bool
     discovery record = liftIO $ do
       let name = serverName record
       withMongoDbConnection $ upsert (select ["serverName" =: name] "systemServerRecords") $ toBSON record
       return True
 
-
+-- Unlocks file in DB
 performUnlockOnFile :: String -> IO ()
 performUnlockOnFile virtPath = do
   updateLockOnFile (FileLock virtPath False)
   
-
+-- Locks file in DB
 performLockOnFile :: String -> IO Bool
 performLockOnFile virtPath = do
   fileIsLocked <- isFileLocked virtPath 
@@ -189,7 +194,7 @@ mongoDbPort = defEnv "MONGODB_PORT" read 27017 False -- 27017 is the default mon
 
 -- | The name of the mongoDB database that devnostics-rest uses to store and access data
 mongoDbDatabase :: IO String
-mongoDbDatabase = defEnv "MONGODB_DATABASE" id "USEHASKELLDB" True
+mongoDbDatabase = defEnv "MONGODB_DATABASE" id "FILESYSTEMDB" True
 
 -- | Determines log reporting level. Set to "DEBUG", "WARNING" or "ERROR" as preferred. Loggin is
 -- provided by the hslogger library.
