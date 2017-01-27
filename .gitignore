@@ -8,3 +8,4 @@ old-verisions/client/.stack-work/
 lock-service/.stack-work
 file-service/.stack-work
 directory-service/.stack-work
+transaction-service/.stack-work
